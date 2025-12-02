@@ -14,6 +14,7 @@ public interface IImageRepository
     Task<Image?> GetImageByConditionAsync(Expression<Func<Image, bool>> condition);
 
     Task<IEnumerable<Image>> GetImagesByPromptIdAsync(Guid promptId);
-    Task AddImageToPromptAsync(Guid promptId, Guid imageId);
-    Task RemoveImageFromPromptAsync(Guid promptId, Guid imageId);
+    Task<bool> AddImageToPromptAsync(Guid promptId, Guid imageId);
+    Task<bool> RemoveImageFromPromptAsync(Guid promptId, Guid imageId);
+    bool DoesImageExist(Guid imageId);
 }
