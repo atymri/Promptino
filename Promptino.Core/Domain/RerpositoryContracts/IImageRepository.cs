@@ -16,5 +16,5 @@ public interface IImageRepository
     Task<IEnumerable<Image>> GetImagesByPromptIdAsync(Guid promptId);
     Task<bool> AddImageToPromptAsync(Guid promptId, Guid imageId);
     Task<bool> RemoveImageFromPromptAsync(Guid promptId, Guid imageId);
-    bool DoesImageExist(Guid imageId);
+    Task<bool> DoesImageExistAsync(Guid imageId);
 }
