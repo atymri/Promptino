@@ -23,13 +23,9 @@ public class PromptRepository : IPromptRepository
         return prompt;
     }
 
-    public async Task<bool> AddToFavoritesAsync(Guid userId, Guid promptId)
+    public async Task<bool> AddToFavoritesAsync(FavoritePrompts favoritePrompt)
     {
-        await _context.FavoritePrompts.AddAsync(new FavoritePrompts
-        {
-            UserID = userId,
-            PromptID = promptId,
-        });
+        await _context.FavoritePrompts.AddAsync(favoritePrompt);
 
         return await _context.SaveChangesAsync() > 0;
     }
@@ -46,15 +42,15 @@ public class PromptRepository : IPromptRepository
     public async Task<bool> DoesPromptExistAsync(Guid promptId)
         => await _context.Prompts.FindAsync(promptId) != null;
 
-    public async Task<IEnumerable<Prompt>> GetFavoritePromptsAsync(Guid userId)
-    => await _context.Prompts
-        .Where(p => p.FavoritePrompts.Any(fp => fp.UserID == userId))
-        .Include(p => p.PromptImages)
-        .ThenInclude(pi => pi.Image)
-        .ToListAsync();
+    public async Task<IEnumerable<FavoritePrompts>> GetFavoritePromptsAsync(Guid userId)
+    => await _context.FavoritePrompts
+            .Where(fp => fp.UserID == userId)
+            .Include(fp => fp.Prompt)
+            .ThenInclude(p => p.PromptImages)
+            .ThenInclude(pi => pi.Image)
+            .ToListAsync();
 
-    public async Task<Prompt?> GetPromptByConditionAsync(
-        Expression<Func<Prompt, bool>> condition)
+    public async Task<Prompt?> GetPromptByConditionAsync(Expression<Func<Prompt, bool>> condition)
         => await _context.Prompts
             .Include(p => p.PromptImages)
             .ThenInclude(pi => pi.Image)
@@ -62,9 +58,9 @@ public class PromptRepository : IPromptRepository
 
     public async Task<IEnumerable<Prompt>> GetPromptsAsync()
         => await _context.Prompts
-        .Include(p => p.PromptImages)
-        .ThenInclude(pi => pi.Image)
-        .ToListAsync();
+            .Include(p => p.PromptImages)
+            .ThenInclude(pi => pi.Image)
+            .ToListAsync();
 
     public async Task<IEnumerable<Prompt>> GetPromptsByConditionAsync(Expression<Func<Prompt, bool>> condition)
         => await _context.Prompts
@@ -99,6 +95,7 @@ public class PromptRepository : IPromptRepository
                      || p.Description.ToLower().Contains(keyword.ToLower()))
             .ToListAsync();
     }
+
     public async Task<Prompt?> UpdatePromptAsync(Prompt prompt)
     {
         var existingPrompt = await _context.Prompts

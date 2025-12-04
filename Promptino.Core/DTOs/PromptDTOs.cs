@@ -15,11 +15,10 @@ public record PromptUpdateRequest(
     Guid Id,
     string Title,
     string Description,
-    string Content,
-    IEnumerable<Guid>? ImageIds = null
+    string Content
 )
 {
-    public PromptUpdateRequest() : this(default, default ,default, default, default)
+    public PromptUpdateRequest() : this(default, default ,default, default)
     { }    
 };
 

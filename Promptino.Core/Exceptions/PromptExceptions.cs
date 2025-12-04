@@ -25,6 +25,33 @@ public class PromptExistsException : Exception
 
 }
 
+public class NullImageForPromptException : Exception
+{
+    public NullImageForPromptException() : base()
+    { }
+
+    public NullImageForPromptException(string message) : base(message)
+    { }
+
+    public NullImageForPromptException(string message, Exception? innerException) : base(message, innerException)
+    { }
+
+}
+
+
+public class InvalidPromptIdException : KeyNotFoundException
+{
+    public InvalidPromptIdException() : base()
+    { }
+
+    public InvalidPromptIdException(string message) : base(message)
+    { }
+
+    public InvalidPromptIdException(string message, Exception? innerException) : base(message, innerException)
+    { }
+
+}
+
 public class ImageLimitException : Exception
 {
     public ImageLimitException() : base()

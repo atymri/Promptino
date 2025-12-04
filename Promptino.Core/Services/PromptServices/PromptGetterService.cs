@@ -1,0 +1,71 @@
+﻿using AutoMapper;
+using AutoMapper.Extensions.ExpressionMapping;
+using Promptino.Core.Domain.Entities;
+using Promptino.Core.Domain.RepositoryContracts;
+using Promptino.Core.DTOs;
+using Promptino.Core.ServiceContracts.ImageServiceContracts;
+using System.Linq.Expressions;
+
+namespace Promptino.Core.Services.PromptServices;
+
+public class PromptGetterService : IPromptGetterService
+{
+    private readonly IPromptRepository _promptRepository;
+    private readonly IMapper _mapper;
+    public PromptGetterService(IPromptRepository promptRepository, IMapper mapper)
+    {
+        _promptRepository = promptRepository;
+        _mapper = mapper;
+    }
+
+    public async Task<IEnumerable<PromptResponse>> GetAllPromptsAsync()
+        =>  _mapper.Map<List<PromptResponse>>(await _promptRepository.GetPromptsAsync()) 
+        ?? new List<PromptResponse>();
+
+    public async Task<IEnumerable<FavoriteWithDetailsResponse>> GetFavoritePromptsAsync(Guid userId)
+        => _mapper.Map<List<FavoriteWithDetailsResponse>>
+             (await _promptRepository.GetFavoritePromptsAsync(userId));
+   
+
+    public async Task<PromptResponse> GetPromptByConditionAsync(Expression<Func<PromptResponse, bool>> condition)
+    {
+        if (condition is null)
+            throw new ArgumentNullException(nameof(condition));
+
+        var mappedCondition = _mapper.MapExpression<Expression<Func<Prompt, bool>>>(condition);
+
+        return _mapper.Map<PromptResponse>
+            (await _promptRepository.GetPromptByConditionAsync(mappedCondition));
+    }
+
+    public async Task<IEnumerable<PromptResponse>> GetPromptsByConditionAsync(Expression<Func<PromptResponse, bool>> condition)
+    {
+        if (condition is null)
+            throw new ArgumentNullException("Invalid condition.", nameof(condition));
+
+        var mappedCondition = _mapper.MapExpression<Expression<Func<Prompt, bool>>>(condition);
+
+        return _mapper.Map<List<PromptResponse>>
+            (await _promptRepository.GetPromptsByConditionAsync(mappedCondition));
+    }
+
+    public async Task<bool> IsPromptFavoriteAsync(Guid userId, Guid promptId)
+    {
+        if(userId == Guid.Empty)
+            throw new ArgumentException("User ID cannot be empty.", nameof(userId));
+
+        if(promptId == Guid.Empty)
+            throw new ArgumentException("Prompt ID cannot be empty.", nameof(promptId));
+
+        return await _promptRepository.IsFavoriteAsync(promptId, userId);
+    }
+
+    public async Task<IEnumerable<PromptResponse>> SearchPromptsAsync(string keyword)
+    {
+        if(string.IsNullOrWhiteSpace(keyword))
+            throw new ArgumentException("Keyword cannot be null or empty.", nameof(keyword));
+    
+        var prompts = await _promptRepository.SearchPromptAsync(keyword);
+        return _mapper.Map<List<PromptResponse>>(prompts);
+    }
+}

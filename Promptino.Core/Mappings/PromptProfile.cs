@@ -34,6 +34,6 @@ public class PromptProfile : Profile
             .ForMember(dest => dest.Title, opt => opt.MapFrom(src => src.Title))
             .ForMember(dest => dest.Description, opt => opt.MapFrom(src => src.Description))
             .ForMember(dest => dest.Content, opt => opt.MapFrom(src => src.Content))
-            .ForMember(dest => dest.Images, opt => opt.MapFrom(src => src.PromptImages));
+            .ForMember(dest => dest.Images, opt => opt.MapFrom(src => src.PromptImages.Select(p => p.Image)));
     }
 }

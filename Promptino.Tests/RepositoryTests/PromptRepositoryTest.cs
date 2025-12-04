@@ -7,6 +7,7 @@ using System.Linq.Expressions;
 
 namespace Promptino.Infrastructure.Tests.Repositories;
 
+// NOTE: AI DRIVEN DEVELOPED!!
 public class PromptRepositoryTests : IDisposable
 {
     private readonly ApplicationDbContext _context;
@@ -214,9 +215,8 @@ public class PromptRepositoryTests : IDisposable
         // Verify not favorite yet
         var isFavoriteBefore = await _repository.IsFavoriteAsync(userId, promptId);
         Assert.False(isFavoriteBefore);
-
         // Act
-        var result = await _repository.AddToFavoritesAsync(userId, promptId);
+        var result = await _repository.AddToFavoritesAsync(new FavoritePrompts() { UserID = userId, PromptID = promptId});
 
         // Assert
         Assert.True(result);
@@ -242,7 +242,7 @@ public class PromptRepositoryTests : IDisposable
         Assert.True(isFavoriteBefore);
 
         // Act
-        var result = await _repository.AddToFavoritesAsync(userId, promptId);
+        var result = await _repository.AddToFavoritesAsync(new FavoritePrompts() { UserID = userId, PromptID = promptId });
 
         // Assert - Should still return true (EF Core handles duplicates)
         Assert.True(result);
@@ -322,10 +322,10 @@ public class PromptRepositoryTests : IDisposable
         Assert.Equal(2, result.Count()); // User has 2 favorited prompts
 
         // Verify prompts are loaded with images
-        Assert.All(result, prompt => Assert.NotNull(prompt.PromptImages));
+        Assert.All(result, prompt => Assert.NotNull(prompt.Prompt.PromptImages));
 
         // Verify images are loaded
-        Assert.All(result.SelectMany(p => p.PromptImages),
+        Assert.All(result.SelectMany(p => p.Prompt.PromptImages),
             pi => Assert.NotNull(pi.Image));
 
         // Verify correct prompts are returned
@@ -793,7 +793,7 @@ public class PromptRepositoryTests : IDisposable
         Assert.Contains(searchResults, p => p.ID == newPrompt.ID);
 
         // 5. Add to favorites
-        var addedToFavorites = await _repository.AddToFavoritesAsync(_testUser.Id, newPrompt.ID);
+        var addedToFavorites = await _repository.AddToFavoritesAsync(new FavoritePrompts() { UserID = _testUser.Id, PromptID = newPrompt.ID });
         Assert.True(addedToFavorites);
 
         // 6. Verify it's in favorites
