@@ -4,7 +4,7 @@ using Promptino.Core.ServiceContracts.ImageServiceContracts;
 
 namespace Promptino.Core.Services.ImageServices;
 
-internal class ImageDeleterService : IImageDeleterService
+public class ImageDeleterService : IImageDeleterService
 {
     private readonly IPromptRepository _promptRepository;
     private readonly IImageRepository _imageRepository;

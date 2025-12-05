@@ -1,7 +1,5 @@
 ﻿using AutoMapper;
 using Moq;
-using System;
-using System.Collections.Generic;
 using System.Linq.Expressions;
 using Promptino.Core.Domain.Entities;
 using Promptino.Core.Domain.RepositoryContracts;
@@ -41,6 +39,8 @@ public class PromptServiceTest
     // ------------------------------------------------------------
     // PromptAdderService Tests
     // ------------------------------------------------------------
+
+    #region AdderTests
 
     [Fact]
     public async Task CreatePromptAsync_ShouldThrow_WhenImagesMoreThanSix()
@@ -194,9 +194,13 @@ public class PromptServiceTest
         await Assert.ThrowsAsync<InvalidOperationException>(() => service.AddToFavoritesAsync(req));
     }
 
+    #endregion
+
     // ------------------------------------------------------------
     // PromptGetterService Tests
     // ------------------------------------------------------------
+    
+    #region GetterTests
 
     [Fact]
     public async Task GetAllPromptsAsync_ShouldReturnMappedList_WhenSomeExist()
@@ -389,9 +393,13 @@ public class PromptServiceTest
         Assert.Single(result);
     }
 
+    #endregion
+
     // ------------------------------------------------------------
     // PromptUpdaterService Tests
     // ------------------------------------------------------------
+
+    #region UpdaterTests
 
     [Fact]
     public async Task UpdatePromptAsync_ShouldThrow_WhenPromptDoesNotExist()
@@ -455,9 +463,13 @@ public class PromptServiceTest
         await Assert.ThrowsAsync<InvalidOperationException>(() => service.UpdatePromptAsync(req));
     }
 
+    #endregion
+
     // ------------------------------------------------------------
     // NEW TESTS – Ensure Images are mapped as ImageResponse everywhere
     // ------------------------------------------------------------
+
+    #region MappedImagesTest
 
     [Fact]
     public async Task CreatePromptAsync_ShouldReturnImages_AsImageResponse()
@@ -537,9 +549,13 @@ public class PromptServiceTest
         Assert.All(result.Images, img => Assert.IsType<ImageResponse>(img));
     }
 
+    #endregion
+
     // ------------------------------------------------------------
     // PromptDeleterService Tests
     // ------------------------------------------------------------
+
+    #region DeleterTests
 
     [Fact]
     public async Task DeletePromptAsync_ShouldThrow_WhenPromptDoesNotExist()
@@ -675,6 +691,6 @@ public class PromptServiceTest
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
             service.RemoveFromFavoritesAsync(Guid.NewGuid(), Guid.NewGuid()));
     }
-
+    #endregion
 
 }

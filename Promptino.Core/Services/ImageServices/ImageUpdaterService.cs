@@ -7,7 +7,7 @@ using Promptino.Core.ServiceContracts.ImageServiceContracts;
 
 namespace Promptino.Core.Services.ImageServices;
 
-internal class ImageUpdaterService : IImageUpdaterService
+public class ImageUpdaterService : IImageUpdaterService
 {
     private readonly IImageRepository _imageRepository;
     private readonly IMapper _mapper;

@@ -9,7 +9,7 @@ using System.Linq.Expressions;
 
 namespace Promptino.Core.Services.ImageServices;
 
-internal class ImageGetterService : IImageGetterrService
+public class ImageGetterService : IImageGetterrService
 {
     private readonly IImageRepository _imageRepository;
     private readonly IMapper _mapper;

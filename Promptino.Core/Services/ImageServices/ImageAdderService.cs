@@ -7,7 +7,7 @@ using Promptino.Core.ServiceContracts.ImageServiceContracts;
 
 namespace Promptino.Core.Services.ImageServices;
 
-internal class ImageAdderService : IImageAdderService
+public class ImageAdderService : IImageAdderService
 {
     private readonly IPromptRepository _promptRepository;
     private readonly IImageRepository _imageRepository;

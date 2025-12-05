@@ -26,16 +26,17 @@ public class PromptImageRepository : IPromptImageRepository
         _imageRepository = imageRepository;
     }
 
+    // NOT: using transaction just to make sure if something goes off we dont mess the whole database.
     public async Task<PromptResponse> CreatePromptWithImagesAsync(PromptAddRequest promptRequest)
     {
-        using var transaction = await _context.Database.BeginTransactionAsync();
+        await using var transaction = await _context.Database.BeginTransactionAsync();
         try
         {
             var prompt = _mapper.Map<Prompt>(promptRequest);
             var createdPrompt = await _promptRepository.AddPromptAsync(prompt);
 
             if (createdPrompt == null)
-                throw new InvalidOperationException("Failed to create prompt");
+                throw new InvalidOperationException("خطا در ساخت پرامپت");
 
             if (promptRequest.Images != null && promptRequest.Images.Any())
             {
@@ -45,14 +46,14 @@ public class PromptImageRepository : IPromptImageRepository
                     var createdImage = await _imageRepository.AddImageAsync(image);
 
                     if (createdImage == null)
-                        throw new InvalidOperationException("Failed to create image");
+                        throw new InvalidOperationException("خطا در افزودن تصویر");
 
                     var success = await _imageRepository.AddImageToPromptAsync(
                         createdPrompt.ID,
                         createdImage.ID);
 
                     if (!success)
-                        throw new InvalidOperationException($"Failed to link image {createdImage.ID} to prompt {createdPrompt.ID}");
+                        throw new InvalidOperationException($"خطا در افزودن تصویر {image.ID} به پرامپت {prompt.ID}");
                 }
             }
 
@@ -65,6 +66,7 @@ public class PromptImageRepository : IPromptImageRepository
         }
         catch
         {
+            await transaction.RollbackAsync(); // forgetting this was a rookie mistake.
             throw;
         }
     }
