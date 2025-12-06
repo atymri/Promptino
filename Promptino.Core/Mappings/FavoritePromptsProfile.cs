@@ -4,7 +4,7 @@ using Promptino.Core.Domain.Entities;
 
 namespace Promptino.Core.Mappings;
 
-public class FavoritePromptsProfile : Profile
+class FavoritePromptsProfile : Profile
 {
     public FavoritePromptsProfile()
     {

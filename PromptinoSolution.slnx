@@ -1,4 +1,5 @@
 <Solution>
+  <Project Path="Promptino.API/Promptino.API.csproj" Id="a3c925e9-24c7-47da-a750-1465f894544d" />
   <Project Path="Promptino.Core/Promptino.Core.csproj" />
   <Project Path="Promptino.Infrastructure/Promptino.Infrastructure.csproj" Id="3540d923-d1cd-49b6-a0d4-b418d145e282" />
   <Project Path="Promptino.Tests/Promptino.Tests.csproj" Id="9f53d66d-03ba-4555-a758-34332b924342" />

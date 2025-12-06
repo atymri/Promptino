@@ -1,0 +1,6 @@
+@Promptino.API_HostAddress = http://localhost:5007
+
+GET {{Promptino.API_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
