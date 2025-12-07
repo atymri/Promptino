@@ -12,7 +12,7 @@ using Promptino.Infrastructure.DatabaseContext;
 namespace Promptino.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20251206183432_init")]
+    [Migration("20251207074202_init")]
     partial class init
     {
         /// <inheritdoc />
@@ -213,6 +213,13 @@ namespace Promptino.Infrastructure.Migrations
 
                     b.Property<bool>("PhoneNumberConfirmed")
                         .HasColumnType("bit");
+
+                    b.Property<string>("RefreshToken")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("RefreshTokenExpiration")
+                        .HasColumnType("datetime2");
 
                     b.Property<string>("SecurityStamp")
                         .HasColumnType("nvarchar(max)");

@@ -12,4 +12,5 @@ internal class JwtOptions
     public string Audience { get; set; } = string.Empty;
     public string SecretKey { get; set; } = string.Empty;
     public int ExpiryInMinutes { get; set; }
+    public int RefreshTokenExpiryInMinutes { get; set; }
 }

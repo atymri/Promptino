@@ -10,13 +10,15 @@ public record AuthResponse
     bool IsLockedOut,
     DateTime CreatedAt,
     DateTime? LastLoginAt,
-    string Token
+    string Token,
+    string RefreshToken,
+    DateTime RefreshTokenExpiry
 )
 {
     public AuthResponse() : this(
         default, default, default,
         default, default, default, 
-        default, default, default)
+        default, default, default, default, default)
     { }
 };
 
@@ -43,5 +45,14 @@ public record LoginRequest
 )
 {
     public LoginRequest() : this(default, default,default)
+    { }
+}
+
+public record RefreshTokenRequest(
+    string Token,
+    string RefreshToken
+)
+{
+    public RefreshTokenRequest() : this(default!, default!)
     { }
 }

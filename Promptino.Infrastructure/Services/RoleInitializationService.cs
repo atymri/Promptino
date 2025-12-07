@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Promptino.Core.Domain.Entities;
+using Promptino.Core.ServiceContracts;
 
 namespace Promptino.Infrastructure.Services;
 
@@ -10,7 +11,7 @@ public class RoleInitializationService : IHostedService
 {
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<RoleInitializationService> _logger;
-
+    
     public RoleInitializationService(
         IServiceProvider serviceProvider,
         ILogger<RoleInitializationService> logger)
@@ -24,9 +25,10 @@ public class RoleInitializationService : IHostedService
         using var scope = _serviceProvider.CreateScope();
         var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<ApplicationRole>>();
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        var tokenService = scope.ServiceProvider.GetRequiredService<ITokenService>();
 
         await InitializeRolesAsync(roleManager);
-        await CreateAdminUserAsync(userManager, roleManager);
+        await CreateAdminUserAsync(userManager, roleManager, tokenService);
     }
 
     private async Task InitializeRolesAsync(RoleManager<ApplicationRole> roleManager)
@@ -37,9 +39,7 @@ public class RoleInitializationService : IHostedService
             {
                 var adminRole = new ApplicationRole
                 {
-                    Id = Guid.NewGuid(),
                     Name = "Admin",
-                    NormalizedName = "ADMIN",
                     Details = "مدیر سیستم - دسترسی کامل به تمامی بخش‌های سیستم"
                 };
 
@@ -55,9 +55,7 @@ public class RoleInitializationService : IHostedService
             {
                 var userRole = new ApplicationRole
                 {
-                    Id = Guid.NewGuid(),
                     Name = "User",
-                    NormalizedName = "USER",
                     Details = "کاربر عادی - دسترسی به امکانات پایه سیستم"
                 };
 
@@ -76,30 +74,24 @@ public class RoleInitializationService : IHostedService
         }
     }
 
-    private async Task CreateAdminUserAsync(UserManager<ApplicationUser> userManager, RoleManager<ApplicationRole> roleManager)
+    private async Task CreateAdminUserAsync(UserManager<ApplicationUser> userManager, 
+        RoleManager<ApplicationRole> roleManager, ITokenService tokenService)
     {
         try
         {
-            var adminEmail = "promptinoadmin@gmail.com"; 
+            var adminEmail = "promptinoadmin@gmail.com";
             var adminUser = await userManager.FindByEmailAsync(adminEmail);
 
             if (adminUser == null)
             {
                 var admin = new ApplicationUser
                 {
-                    Id = Guid.NewGuid(),
                     UserName = "admin",
-                    NormalizedUserName = "ADMIN",
                     Email = adminEmail,
-                    NormalizedEmail = adminEmail.ToUpper(),
-                    EmailConfirmed = true,
-                    PhoneNumberConfirmed = true,
-                    TwoFactorEnabled = false,
-                    LockoutEnabled = false,
-                    AccessFailedCount = 0,
                     FirstName = "مدیر",
                     LastName = "سیستم",
-                    CreatedAt = DateTime.UtcNow
+                    RefreshToken = string.Empty,
+                    RefreshTokenExpiration = DateTime.MinValue
                 };
 
                 var password = "4sB4bId4RcH4M4N@123";
@@ -108,15 +100,21 @@ public class RoleInitializationService : IHostedService
 
                 if (result.Succeeded)
                 {
+                    var token = tokenService.CreateToken(admin);
+
+                    admin.RefreshToken = token.RefreshToken;
+                    admin.RefreshTokenExpiration = token.RefreshTokenExpiry;
+
+                    await userManager.UpdateAsync(admin);
 
                     if (!await roleManager.RoleExistsAsync("Admin"))
                     {
                         await InitializeRolesAsync(roleManager);
                     }
+
                     await userManager.AddToRoleAsync(admin, "Admin");
 
                     _logger.LogInformation("Admin user created successfully with username: {Username}", admin.UserName);
-
                 }
                 else
                 {
@@ -141,6 +139,7 @@ public class RoleInitializationService : IHostedService
             throw;
         }
     }
+
 
     public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 }
