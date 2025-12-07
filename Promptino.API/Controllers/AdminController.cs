@@ -2,7 +2,6 @@
 using Promptino.Core.DTOs;
 using Promptino.Core.ServiceContracts.ImageServiceContracts;
 using Promptino.API.Models;
-using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Authorization;
 
 namespace Promptino.API.Controllers;
@@ -38,7 +37,11 @@ public class AdminController : BaseController
         _imageGetterService = imageGetterService;
     }
 
+    // ─────────────────────────────── Prompts ───────────────────────────────
+
     [HttpPost("prompts")]
+    [ProducesResponseType(typeof(PromptResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<PromptResponse>> CreatePrompt([FromBody] PromptAddRequest request)
     {
         if (!ModelState.IsValid)
@@ -49,6 +52,8 @@ public class AdminController : BaseController
     }
 
     [HttpPut("prompts")]
+    [ProducesResponseType(typeof(PromptResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<PromptResponse>> UpdatePrompt([FromBody] PromptUpdateRequest request)
     {
         if (!ModelState.IsValid)
@@ -59,14 +64,21 @@ public class AdminController : BaseController
     }
 
     [HttpDelete("prompts/{id:guid}")]
+    [ProducesResponseType(typeof(bool), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<bool>> DeletePrompt(Guid id)
     {
         var result = await _promptDeleterService.DeletePromptAsync(id);
         return Ok(result);
     }
 
+
+    // ─────────────────────────────── Images ───────────────────────────────
+
     [HttpPost("[action]")]
     [Consumes("multipart/form-data")]
+    [ProducesResponseType(typeof(ImageResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<ImageResponse>> CreateImage([FromForm] ImageFormRequest request)
     {
         if (request.File == null || request.File.Length == 0)
@@ -90,12 +102,16 @@ public class AdminController : BaseController
 
         var result = await _imageAdderService.CreateImageAsync(
             new ImageAddRequest(request.Title, relativePath, request.GeneratedWith));
+
         return Ok(result);
     }
 
 
     [HttpPut("[action]")]
     [Consumes("multipart/form-data")]
+    [ProducesResponseType(typeof(ImageResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<ImageResponse>> UpdateImage([FromForm] ImageUpdateFormRequest request)
     {
         if (!ModelState.IsValid)
@@ -119,10 +135,7 @@ public class AdminController : BaseController
             System.IO.File.Delete(oldFilePath);
         }
 
-        string relativePath = request.Path;
-
         var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "images");
-
         var uniqueFileName = Guid.NewGuid() + Path.GetExtension(request.File.FileName);
         var filePath = Path.Combine(uploadsFolder, uniqueFileName);
 
@@ -131,7 +144,7 @@ public class AdminController : BaseController
             await request.File.CopyToAsync(stream);
         }
 
-        relativePath = "/images/" + uniqueFileName;
+        var relativePath = "/images/" + uniqueFileName;
 
         var imageUpdateDto = new ImageUpdateRequest(
             Id: request.Id,
@@ -148,6 +161,8 @@ public class AdminController : BaseController
 
 
     [HttpDelete("images/{id:guid}")]
+    [ProducesResponseType(typeof(bool), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<bool>> DeleteImage(Guid id)
     {
         var image = await _imageGetterService.GetImageByConditionAsync(im => im.Id == id);
@@ -166,7 +181,10 @@ public class AdminController : BaseController
         return Ok(result);
     }
 
+
     [HttpPost("images/assign")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult> AssignImageToPrompt([FromQuery] Guid promptId, [FromQuery] Guid imageId)
     {
         var result = await _imageAdderService.AddImageToPromptAsync(promptId, imageId);
@@ -174,6 +192,8 @@ public class AdminController : BaseController
     }
 
     [HttpDelete("images/assign")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult> RemoveImageFromPrompt([FromQuery] Guid promptId, [FromQuery] Guid imageId)
     {
         var result = await _imageDeleterService.RemoveImageFromPromptAsync(promptId, imageId);
