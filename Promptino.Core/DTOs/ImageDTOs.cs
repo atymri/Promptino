@@ -1,4 +1,6 @@
-﻿namespace Promptino.Core.DTOs;
+﻿using Microsoft.AspNetCore.Http;
+
+namespace Promptino.Core.DTOs;
 
 public record ImageAddRequest(
     string Title,
@@ -6,7 +8,7 @@ public record ImageAddRequest(
     string GeneratedWith
 )
 {
-    public ImageAddRequest() : this(default, default, default)
+    public ImageAddRequest() : this(default,default, default)
     { }
 };
 
@@ -14,10 +16,11 @@ public record ImageUpdateRequest(
     Guid Id,
     string Title,
     string Path,
+    IFormFile? file,
     string GeneratedWith
 )
 {
-    public ImageUpdateRequest() : this(default, default, default, default)
+    public ImageUpdateRequest() : this(default, default, default, default, default)
     { }
 };
 

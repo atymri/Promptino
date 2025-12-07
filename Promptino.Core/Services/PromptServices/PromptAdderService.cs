@@ -26,20 +26,32 @@ public class PromptAdderService : IPromptAdderService
 
     public async Task<FavoritePromptResponse> AddToFavoritesAsync(FavoritePromptAddRequest favoriteRequest)
     {
+        if (await _promptRepository.IsFavoriteAsync(favoriteRequest.UserID, favoriteRequest.PromptID))
+            throw new PromptExistsException("پرامپت مورد نظر در حال حاضر در علاقه مندی های شما وجود دارد");
+
+        if(!await _promptRepository.DoesPromptExistAsync(favoriteRequest.PromptID))
+            throw new PromptNotFoundExceptions("پرامپت مورد نظر پیدا نشد");
+
         var favPrompt = _mapper.Map<FavoritePrompts>(favoriteRequest);
         var success = await _promptRepository.AddToFavoritesAsync(favPrompt);
 
         if (!success)
-            throw new Exception("Failed to add to favorites");
+            throw new Exception("خطا در افزودن پرامپت به مورد علاقه ها");
 
         return _mapper.Map<FavoritePromptResponse>(favPrompt);
     }
 
     public async Task<PromptResponse> CreatePromptAsync(PromptAddRequest promptRequest)
     {
-        if (promptRequest.Images != null && promptRequest.Images.Count() > 6)
-            throw new ImageLimitException("هر پرامپت میتواند حداکثر 6 تصویر ذخیره کند");
+        //if (promptRequest.Images != null && promptRequest.Images.Count() > 6)
+        //    throw new ImageLimitException("هر پرامپت میتواند حداکثر 6 تصویر ذخیره کند");
 
-        return await _promptImageRepository.CreatePromptWithImagesAsync(promptRequest);
+        // NOTE: more login may be added later, for now we are just saving the prompt in here.
+        //return await _promptImageRepository.CreatePromptWithImagesAsync(promptRequest);
+
+        var prompt = _mapper.Map<Prompt>(promptRequest);
+        var res = await _promptRepository.AddPromptAsync(prompt);
+
+        return _mapper.Map<PromptResponse>(res);
     }
 }

@@ -25,6 +25,8 @@ public class AccountProfile : Profile
             .ForMember(dst => dst.LastName, opt => opt.MapFrom(src => src.LastName))
             .ForMember(dst => dst.Email, opt => opt.MapFrom(src => src.Email))
             .ForMember(dst => dst.UserName, opt => opt.MapFrom(src => src.Email))
-            .ForMember(dst => dst.PhoneNumber, opt => opt.MapFrom(src => src.PhoneNumber));
+            .ForMember(dst => dst.PhoneNumber, opt => opt.MapFrom(src => src.PhoneNumber))
+            .ForMember(dst => dst.RefreshToken, opt => opt.Ignore())
+            .ForMember(dst => dst.RefreshTokenExpiration, opt => opt.Ignore()) ;
     }
 }

@@ -3,11 +3,10 @@
 public record PromptAddRequest(
     string Title,
     string Description,
-    string Content,
-    IEnumerable<ImageAddRequest>? Images = null
+    string Content
 )
 {
-    public PromptAddRequest() : this(default, default, default, default)
+    public PromptAddRequest() : this(default, default, default)
     { }
 };
 

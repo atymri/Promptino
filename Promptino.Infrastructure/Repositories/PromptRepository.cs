@@ -23,6 +23,12 @@ public class PromptRepository : IPromptRepository
         return prompt;
     }
 
+    public async Task<bool> IsPromptInFavorites(Guid userrId, Guid promptId)
+    {
+        return await _context.FavoritePrompts
+            .AnyAsync(fp => fp.UserID == userrId && fp.PromptID == promptId);
+    }
+
     public async Task<bool> AddToFavoritesAsync(FavoritePrompts favoritePrompt)
     {
         await _context.FavoritePrompts.AddAsync(favoritePrompt);

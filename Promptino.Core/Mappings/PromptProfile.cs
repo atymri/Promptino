@@ -4,8 +4,6 @@ using Promptino.Core.DTOs;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Promptino.Core.Mappings;
 
@@ -18,7 +16,7 @@ public class PromptProfile : Profile
             .ForMember(dest => dest.Title, opt => opt.MapFrom(src => src.Title))
             .ForMember(dest => dest.Description, opt => opt.MapFrom(src => src.Description))
             .ForMember(dest => dest.Content, opt => opt.MapFrom(src => src.Content))
-            .ForMember(dest => dest.PromptImages, opt => opt.MapFrom(src => src.Images))
+            //.ForMember(dest => dest.PromptImages, opt => opt.MapFrom(src => src.Images))
             .ForMember(dest => dest.FavoritePrompts, opt => opt.Ignore());
 
         CreateMap<PromptUpdateRequest, Prompt>()
@@ -30,10 +28,23 @@ public class PromptProfile : Profile
             .ForMember(dest => dest.FavoritePrompts, opt => opt.Ignore());
 
         CreateMap<Prompt, PromptResponse>()
-            .ForMember(dest => dest.Id, opt => opt.MapFrom(src => src.ID))
-            .ForMember(dest => dest.Title, opt => opt.MapFrom(src => src.Title))
-            .ForMember(dest => dest.Description, opt => opt.MapFrom(src => src.Description))
-            .ForMember(dest => dest.Content, opt => opt.MapFrom(src => src.Content))
-            .ForMember(dest => dest.Images, opt => opt.MapFrom(src => src.PromptImages.Select(p => p.Image)));
+            .ConstructUsing(src => new PromptResponse(
+                src.ID,
+                src.Title,
+                src.Description,
+                src.Content,
+                src.PromptImages != null && src.PromptImages.Any()
+                    ? src.PromptImages
+                        .Where(pi => pi.Image != null) 
+                        .Select(pi => new ImageResponse
+                        {
+                            Title = pi.Image!.Title,
+                            Path = pi.Image!.Path,
+                            GeneratedWith = pi.Image!.GeneratedWith,
+                            Id = pi.Image!.ID
+                        })
+                        .ToList() 
+                    : null
+            ));
     }
 }

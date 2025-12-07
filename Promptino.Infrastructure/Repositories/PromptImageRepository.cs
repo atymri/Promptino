@@ -38,24 +38,24 @@ public class PromptImageRepository : IPromptImageRepository
             if (createdPrompt == null)
                 throw new InvalidOperationException("خطا در ساخت پرامپت");
 
-            if (promptRequest.Images != null && promptRequest.Images.Any())
-            {
-                foreach (var imageRequest in promptRequest.Images)
-                {
-                    var image = _mapper.Map<Image>(imageRequest);
-                    var createdImage = await _imageRepository.AddImageAsync(image);
+            //if (promptRequest.Images != null && promptRequest.Images.Any())
+            //{
+            //    foreach (var imageRequest in promptRequest.Images)
+            //    {
+            //        var image = _mapper.Map<Image>(imageRequest);
+            //        var createdImage = await _imageRepository.AddImageAsync(image);
 
-                    if (createdImage == null)
-                        throw new InvalidOperationException("خطا در افزودن تصویر");
+            //        if (createdImage == null)
+            //            throw new InvalidOperationException("خطا در افزودن تصویر");
 
-                    var success = await _imageRepository.AddImageToPromptAsync(
-                        createdPrompt.ID,
-                        createdImage.ID);
+            //        var success = await _imageRepository.AddImageToPromptAsync(
+            //            createdPrompt.ID,
+            //            createdImage.ID);
 
-                    if (!success)
-                        throw new InvalidOperationException($"خطا در افزودن تصویر {image.ID} به پرامپت {prompt.ID}");
-                }
-            }
+            //        if (!success)
+            //            throw new InvalidOperationException($"خطا در افزودن تصویر {image.ID} به پرامپت {prompt.ID}");
+            //    }
+            //}
 
             await transaction.CommitAsync();
 

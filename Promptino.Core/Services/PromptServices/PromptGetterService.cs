@@ -19,8 +19,12 @@ public class PromptGetterService : IPromptGetterService
     }
 
     public async Task<IEnumerable<PromptResponse>> GetAllPromptsAsync()
-        =>  _mapper.Map<List<PromptResponse>>(await _promptRepository.GetPromptsAsync()) 
-        ?? new List<PromptResponse>();
+    //=>  _mapper.Map<List<PromptResponse>>(await _promptRepository.GetPromptsAsync()) 
+    //?? new List<PromptResponse>();
+    {
+        var prompts = await _promptRepository.GetPromptsAsync();
+        return _mapper.Map<List<PromptResponse>>(prompts);
+    }
 
     public async Task<IEnumerable<FavoriteWithDetailsResponse>> GetFavoritePromptsAsync(Guid userId)
         => _mapper.Map<List<FavoriteWithDetailsResponse>>
@@ -41,7 +45,7 @@ public class PromptGetterService : IPromptGetterService
     public async Task<IEnumerable<PromptResponse>> GetPromptsByConditionAsync(Expression<Func<PromptResponse, bool>> condition)
     {
         if (condition is null)
-            throw new ArgumentNullException("Invalid condition.", nameof(condition));
+            throw new ArgumentNullException("فیلتر نامعتبر ", nameof(condition));
 
         var mappedCondition = _mapper.MapExpression<Expression<Func<Prompt, bool>>>(condition);
 
@@ -52,10 +56,10 @@ public class PromptGetterService : IPromptGetterService
     public async Task<bool> IsPromptFavoriteAsync(Guid userId, Guid promptId)
     {
         if(userId == Guid.Empty)
-            throw new ArgumentException("User ID cannot be empty.", nameof(userId));
+            throw new ArgumentException("آیدی کاربر نمیتواند خالی باشد", nameof(userId));
 
         if(promptId == Guid.Empty)
-            throw new ArgumentException("Prompt ID cannot be empty.", nameof(promptId));
+            throw new ArgumentException("آیدی پرامپت نمیتواند خالی باشد", nameof(promptId));
 
         return await _promptRepository.IsFavoriteAsync(promptId, userId);
     }
@@ -63,7 +67,7 @@ public class PromptGetterService : IPromptGetterService
     public async Task<IEnumerable<PromptResponse>> SearchPromptsAsync(string keyword)
     {
         if(string.IsNullOrWhiteSpace(keyword))
-            throw new ArgumentException("Keyword cannot be null or empty.", nameof(keyword));
+            throw new ArgumentException("کلیدواژه نمیتواند خالی باشد", nameof(keyword));
     
         var prompts = await _promptRepository.SearchPromptAsync(keyword);
         return _mapper.Map<List<PromptResponse>>(prompts);

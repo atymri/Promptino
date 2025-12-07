@@ -31,6 +31,10 @@ public class ImageAdderService : IImageAdderService
         if (!await _imageRepository.DoesImageExistAsync(imageId))
             throw new ImageNotFoundException("تصویر مورد نظر وجود ندارد");
 
+        if (prompt.PromptImages != null && prompt.PromptImages.Count() > 6)
+            throw new ImageLimitException("هر پرامپت میتواند حداکثر 6 تصویر ذخیره کند");
+
+
         return await _imageRepository.AddImageToPromptAsync(promptId, imageId);
     }
 
