@@ -12,7 +12,8 @@ public record AuthResponse
     DateTime? LastLoginAt,
     string Token,
     string RefreshToken,
-    DateTime RefreshTokenExpiry
+    DateTime RefreshTokenExpiry,
+    bool IsAdmin = false
 )
 {
     public AuthResponse() : this(

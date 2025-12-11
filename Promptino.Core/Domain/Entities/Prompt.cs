@@ -7,5 +7,6 @@ public class Prompt : BaseEntity<Guid>
     public string Content { get; set; }
     public virtual List<PromptImage> PromptImages { get; set; } = new();
     public virtual List<FavoritePrompts> FavoritePrompts { get; set; } = new();
+    public virtual List<PromptCategories> PromptCategories { get; set; } = new();
 }
 

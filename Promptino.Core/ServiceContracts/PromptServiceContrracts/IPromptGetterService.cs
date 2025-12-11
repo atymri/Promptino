@@ -12,5 +12,6 @@ public interface IPromptGetterService
     Task<IEnumerable<PromptResponse>> GetPromptsByConditionAsync(Expression<Func<PromptResponse, bool>> condition);
     Task<PromptResponse> GetPromptByConditionAsync(Expression<Func<PromptResponse, bool>> condition);
     Task<IEnumerable<FavoriteWithDetailsResponse>> GetFavoritePromptsAsync(Guid userId);
+    Task<FavoritePromptResponse> GetFavoritesAsync(Guid promptId);
     Task<bool> IsPromptFavoriteAsync(Guid userId, Guid promptId);
 }

@@ -14,6 +14,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, Applicati
     public virtual DbSet<Image> Images { get; set; }
     public virtual DbSet<PromptImage> PromptImages { get; set; }
     public virtual DbSet<FavoritePrompts> FavoritePrompts { get; set; }
+    public virtual DbSet<Category> Categories { get; set; }
+    public virtual DbSet<PromptCategories> PromptCategories { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -10,6 +10,7 @@ using System.IdentityModel.Tokens.Jwt;
 using JwtRegisteredClaimNames = Microsoft.IdentityModel.JsonWebTokens.JwtRegisteredClaimNames;
 using AutoMapper;
 using System.Security.Cryptography;
+using Microsoft.AspNetCore.Identity;
 
 namespace Promptino.Core.Services;
 
@@ -17,43 +18,54 @@ internal class TokenService : ITokenService
 {
     private readonly JwtOptions _jwtOptions;
     private readonly IMapper _mapper;
-    public TokenService(IOptions<JwtOptions> jwtOptions, IMapper mapper)
+    private readonly UserManager<ApplicationUser> _userManager;
+
+    public TokenService(
+        IOptions<JwtOptions> jwtOptions,
+        IMapper mapper,
+        UserManager<ApplicationUser> userManager)
     {
         _jwtOptions = jwtOptions.Value;
         _mapper = mapper;
+        _userManager = userManager;
     }
 
     public AuthResponse CreateToken(ApplicationUser user)
     {
-        var claims = new Claim[]
+        var roles = _userManager.GetRolesAsync(user).Result;
+
+        var claims = new List<Claim>
         {
-            new (JwtRegisteredClaimNames.Sub, user.Id.ToString()),
-            new (JwtRegisteredClaimNames.Iat, DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString()),
-            new (JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-            new (JwtRegisteredClaimNames.Email, user.Email),
-            new (ClaimTypes.Name, user.Email)
+            new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
+            new Claim(JwtRegisteredClaimNames.Iat, DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString()),
+            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+            new Claim(JwtRegisteredClaimNames.Email, user.Email),
+            new Claim(ClaimTypes.Name, user.Email)
         };
+
+        claims.AddRange(roles.Select(r => new Claim(ClaimTypes.Role, r)));
 
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtOptions.SecretKey));
         var signinCreds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
-        var tokenGenerator = new JwtSecurityToken(
+        var jwtToken = new JwtSecurityToken(
             issuer: _jwtOptions.Issuer,
             audience: _jwtOptions.Audience,
             claims: claims,
-            expires: DateTime.Now.AddMinutes(_jwtOptions.ExpiryInMinutes),
+            expires: DateTime.UtcNow.AddMinutes(_jwtOptions.ExpiryInMinutes),
             signingCredentials: signinCreds);
 
-        var token = new JwtSecurityTokenHandler().WriteToken(tokenGenerator);
+        var token = new JwtSecurityTokenHandler().WriteToken(jwtToken);
 
-        var response = _mapper.Map<AuthResponse>(user) 
-            with { LastLoginAt = DateTime.UtcNow,
-            Token = token, 
+        return _mapper.Map<AuthResponse>(user) with
+        {
+            LastLoginAt = DateTime.UtcNow,
+            Token = token,
             IsLockedOut = user.LockoutEnd.HasValue,
             RefreshToken = GenerateRefreshToken(),
-            RefreshTokenExpiry = DateTime.UtcNow.AddMinutes(Convert.ToDouble(_jwtOptions.RefreshTokenExpiryInMinutes))};
-
-        return response;
+            RefreshTokenExpiry = DateTime.UtcNow.AddMinutes(_jwtOptions.RefreshTokenExpiryInMinutes),
+            IsAdmin = roles.Contains("Admin")
+        };
     }
 
     public ClaimsPrincipal GetPrincipalFromToken(string token)
@@ -62,7 +74,7 @@ internal class TokenService : ITokenService
         {
             ValidateIssuer = true,
             ValidateAudience = true,
-            ValidateLifetime = false, // its being called with an expired token, so we don't validate lifetime here
+            ValidateLifetime = false,
             ValidateIssuerSigningKey = true,
             ValidIssuer = _jwtOptions.Issuer,
             ValidAudience = _jwtOptions.Audience,
@@ -72,11 +84,9 @@ internal class TokenService : ITokenService
         var principal = new JwtSecurityTokenHandler()
             .ValidateToken(token, tokenValidator, out var securityToken);
 
-        if(securityToken is not JwtSecurityToken jwtSecurityToken ||
-           !jwtSecurityToken.Header.Alg.Equals(SecurityAlgorithms.HmacSha256, StringComparison.InvariantCultureIgnoreCase))
-        {
+        if (securityToken is not JwtSecurityToken jwtSecurityToken ||
+            !jwtSecurityToken.Header.Alg.Equals(SecurityAlgorithms.HmacSha256, StringComparison.InvariantCultureIgnoreCase))
             throw new SecurityTokenException("Invalid token");
-        }
 
         return principal;
     }
@@ -85,9 +95,7 @@ internal class TokenService : ITokenService
     {
         var bytes = new byte[64];
         using var range = RandomNumberGenerator.Create();
-
         range.GetBytes(bytes);
         return Convert.ToBase64String(bytes);
-
     }
 }

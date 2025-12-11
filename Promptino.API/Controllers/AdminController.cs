@@ -75,6 +75,13 @@ public class AdminController : BaseController
 
     // ─────────────────────────────── Images ───────────────────────────────
 
+    [HttpGet("images")]
+    public async Task<IActionResult> GetImages()
+    {
+        var images = await _imageGetterService.GetAllImagesAsync();
+        return Ok(images);  
+    }
+
     [HttpPost("[action]")]
     [Consumes("multipart/form-data")]
     [ProducesResponseType(typeof(ImageResponse), StatusCodes.Status200OK)]

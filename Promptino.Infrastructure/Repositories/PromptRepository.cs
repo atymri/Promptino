@@ -3,6 +3,7 @@ using Promptino.Core.Domain.Entities;
 using Promptino.Core.Domain.RepositoryContracts;
 using Promptino.Infrastructure.DatabaseContext;
 using System.Linq.Expressions;
+using System.Net.WebSockets;
 
 namespace Promptino.Infrastructure.Repositories;
 
@@ -38,8 +39,18 @@ public class PromptRepository : IPromptRepository
 
     public async Task<bool> DeletePromptAsync(Guid id)
     {
-        var prompt = await _context.Prompts.FindAsync(id);
+        var prompt = await _context.Prompts
+            .Include(p => p.PromptImages)
+            .Include(p => p.PromptCategories)
+            .SingleOrDefaultAsync(p => p.ID == id);
+
         if (prompt == null) return false;
+
+        if (prompt.PromptImages.Any())
+            _context.PromptImages.RemoveRange(prompt.PromptImages);
+
+        if (prompt.PromptCategories.Any())
+            _context.PromptCategories.RemoveRange(prompt.PromptCategories);
 
         _context.Prompts.Remove(prompt);
         return await _context.SaveChangesAsync() > 0;
@@ -88,6 +99,15 @@ public class PromptRepository : IPromptRepository
 
         _context.FavoritePrompts.Remove(favorite);
         return await _context.SaveChangesAsync() > 0;
+    }
+
+    public async Task<List<FavoritePrompts>> GetFavoritesAsync(Guid promptId)
+    {
+        var favorites = await _context.FavoritePrompts
+            .Where(fp => fp.PromptID == promptId)
+            .ToListAsync();
+
+        return favorites;
     }
 
     public async Task<IEnumerable<Prompt>> SearchPromptAsync(string keyword)

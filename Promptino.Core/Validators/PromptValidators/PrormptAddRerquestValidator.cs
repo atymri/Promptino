@@ -20,6 +20,6 @@ public class PrormptAddRerquestValidator : AbstractValidator<PromptAddRequest>
         RuleFor(req => req.Content)
             .NotEmpty().WithMessage("محتوای پرامپت الزامی است")
             .MinimumLength(30).WithMessage("محتوا باید حداقل ۳۰ کاراکتر باشد")
-            .MaximumLength(600).WithMessage("محتوا نباید بیشتر از ۶۰۰ کاراکتر باشد");
+            .MaximumLength(1400).WithMessage("محتوا نباید بیشتر از 1400 کاراکتر باشد");
     }
 }

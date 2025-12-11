@@ -1,4 +1,5 @@
 ﻿using AutoMapper;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Promptino.Core.Domain.Entities;
@@ -8,6 +9,7 @@ using System.Security.Claims;
 
 namespace Promptino.API.Controllers;
 
+[AllowAnonymous]
 public class AuthController : BaseController
 {
     private readonly UserManager<ApplicationUser> _userManager;

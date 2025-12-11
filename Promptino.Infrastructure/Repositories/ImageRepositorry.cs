@@ -42,6 +42,9 @@ public class ImageRepositorry : IImageRepository
 
         if (image == null) return false;
 
+        if (image.PromptImages.Any())
+            _context.PromptImages.RemoveRange(image.PromptImages);
+
         _context.Images.Remove(image);
         return await _context.SaveChangesAsync() > 0;
     }

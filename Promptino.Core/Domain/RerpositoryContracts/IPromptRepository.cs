@@ -19,5 +19,6 @@ public interface IPromptRepository
     Task<bool> IsFavoriteAsync(Guid userId, Guid promptId);
     Task<bool> AddToFavoritesAsync(FavoritePrompts favoritePrompts);
     Task<bool> RemoveFromFavoritesAsync(Guid userId, Guid promptId);
+    Task<List<FavoritePrompts>> GetFavoritesAsync(Guid promptId);
     Task<bool> DoesPromptExistAsync(Guid promptId);
 }

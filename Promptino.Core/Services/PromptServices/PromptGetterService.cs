@@ -3,6 +3,7 @@ using AutoMapper.Extensions.ExpressionMapping;
 using Promptino.Core.Domain.Entities;
 using Promptino.Core.Domain.RepositoryContracts;
 using Promptino.Core.DTOs;
+using Promptino.Core.Exceptions;
 using Promptino.Core.ServiceContracts.ImageServiceContracts;
 using System.Linq.Expressions;
 
@@ -29,7 +30,17 @@ public class PromptGetterService : IPromptGetterService
     public async Task<IEnumerable<FavoriteWithDetailsResponse>> GetFavoritePromptsAsync(Guid userId)
         => _mapper.Map<List<FavoriteWithDetailsResponse>>
              (await _promptRepository.GetFavoritePromptsAsync(userId));
-   
+
+    public async Task<FavoritePromptResponse> GetFavoritesAsync(Guid promptId)
+    {
+        var prompt = await _promptRepository.GetPromptByConditionAsync(p => p.ID == promptId);
+        if (prompt == null)
+            throw new PromptNotFoundExceptions("پرامپت مورد نظر وجود ندارد");
+
+        var favs = await _promptRepository.GetFavoritesAsync(promptId);
+        
+        return _mapper.Map<FavoritePromptResponse>(favs);
+    }
 
     public async Task<PromptResponse> GetPromptByConditionAsync(Expression<Func<PromptResponse, bool>> condition)
     {

@@ -1,7 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Promptino.Core.DTOs;
 using Promptino.Core.ServiceContracts.ImageServiceContracts;
-using System.Linq.Expressions;
 
 namespace Promptino.API.Controllers;
 
@@ -70,7 +69,7 @@ public class PromptsController : BaseController
     }
 
 
-    [HttpPost("prompts/favorites")]
+    [HttpPost("favorites")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult> AddToFavorites([FromBody] FavoritePromptAddRequest request)
@@ -83,11 +82,19 @@ public class PromptsController : BaseController
     }
 
 
-    [HttpDelete("prompts/favorites/{userId:guid}/{promptId:guid}")]
+    [HttpDelete("favorites/{userId:guid}/{promptId:guid}")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     public async Task<ActionResult> RemoveFromFavorites(Guid userId, Guid promptId)
     {
         var result = await _promptDeleterService.RemoveFromFavoritesAsync(userId, promptId);
         return Ok(result);
+    }
+
+    [HttpGet("favrites/{promptId:guid}")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<ActionResult> GetCountOfFavorites(Guid promptId)
+    {
+        var res = await _promptGetterService.GetFavoritePromptsAsync(promptId);
+        return Ok(res.Count());
     }
 }

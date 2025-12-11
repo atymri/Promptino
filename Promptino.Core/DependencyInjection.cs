@@ -19,8 +19,7 @@ public static class DependencyInjection
     {
         services.AddAutoMapper(typeof(PromptProfile).Assembly);
 
-        services.AddFluentValidationAutoValidation();
-
+        services.AddFluentValidationAutoValidation().AddFluentValidationClientsideAdapters();
         services.AddValidatorsFromAssemblyContaining<PrormptAddRerquestValidator>();
         services.AddScoped<ITokenService, TokenService>();
 
