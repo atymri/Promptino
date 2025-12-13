@@ -39,15 +39,18 @@ public class CategoryAdderService : ICategoryAdderService
     public async Task<bool> AddPromptToCategory(AddPromptToCategoryRequest request)
     {
         if (request is null)
-            throw new NullCategoryRequestException(nameof(request));
+            throw new NullCategoryRequestException("درخواست نامعتبر");
 
         var prompt = await _promptRepository.DoesPromptExistAsync(request.PromptID);
         if (!prompt)
-            throw new PromptNotFoundExceptions(nameof(prompt));
+            throw new PromptNotFoundExceptions("پرامپت مورد نظر یافت نشد");
 
         var category = await _categoryRepository.DoesCategoryExistAsync(request.CategoryID);
         if (!category)
-            throw new CategoryNotFoundException(nameof(category));
+            throw new CategoryNotFoundException("دسته بندی مورد نظر یافت نشد");
+
+        if (await _categoryRepository.IsPromptInCategory(categoryId: request.CategoryID, promptId: request.PromptID))
+            throw new Exception("پرامپت مورد نظر در دسته بندی انتخاب شده وجود دارد");
 
         var response = await _categoryRepository.AddPromptToCategoryAsync(request.PromptID, request.CategoryID);
 

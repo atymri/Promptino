@@ -20,7 +20,7 @@ public class CategoryDeleterService : ICategoryDeleterService
     {
         var exists = await _categoryRepository.DoesCategoryExistAsync(categoryID);
         if (!exists)
-            throw new CategoryNotFoundException(nameof(categoryID));
+            throw new CategoryNotFoundException("دسته بندی مورد نظر وجود ندارد");
 
         return await _categoryRepository.DeleteCategoryAsync(categoryID);
     }
@@ -28,16 +28,16 @@ public class CategoryDeleterService : ICategoryDeleterService
     public async Task<bool> RemovePromptFromCategorry(DeletePromptFromCategoryRequest request)
     {
         if (request is null)
-            throw new NullCategoryRequestException(nameof(request));
+            throw new NullCategoryRequestException("درخواست نامعتبر");
 
         var prompt = await _promptRepository.DoesPromptExistAsync(request.PromptID);
         if (!prompt)
-            throw new PromptNotFoundExceptions(nameof(prompt));
+            throw new PromptNotFoundExceptions("پرامپت مورد نظر یافت نشد");
 
         var category = await _categoryRepository.DoesCategoryExistAsync(request.CategoryID);
         if (!category)
-            throw new CategoryNotFoundException(nameof(category));
+            throw new CategoryNotFoundException("دسته بندی مورد نظر یافت نشد");
 
-        return await _categoryRepository.AddPromptToCategoryAsync(promptId: request.PromptID, categoryId:request.CategoryID);
+        return await _categoryRepository.DeletePromptFromCategoryAsync(promptId: request.PromptID, categoryId:request.CategoryID);
     }
 }

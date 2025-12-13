@@ -19,11 +19,11 @@ public class CategoryUpdaterService : ICategoryUpdaterService
     public async Task<CategoryResponse> UpdateCategory(CategoryUpdateRequest request)
     {
         if (request is null)
-            throw new NullCategoryRequestException(nameof(request));
+            throw new NullCategoryRequestException("درخواست نامعتبر");
 
         var exists = await _repository.DoesCategoryExistAsync(request.CategoryID);
         if(!exists)
-            throw new CategoryNotFoundException(nameof(request.CategoryID));
+            throw new CategoryNotFoundException("دسته بندی مورد نظر یافت نشد");
 
         var category = _mapper.Map<Category>(request);
         var response = await _repository.UpdateCategoryAsync(category);

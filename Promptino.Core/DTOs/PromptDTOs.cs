@@ -28,9 +28,10 @@ public record PromptResponse(
     string Content,
     DateTime DateAdded,
     DateTime LastUpdate,
-    IEnumerable<ImageResponse>? Images = null
+    IEnumerable<ImageResponse>? Images = null,
+    IEnumerable<CategoryResponse> Categories = null
 )
 {
-    public PromptResponse() : this(default, default, default, default, default, default, default)
+    public PromptResponse() : this(default, default, default, default, default, default, default, default)
     { }
 };

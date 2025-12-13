@@ -37,7 +37,7 @@ public class PromptProfile : Profile
                 src.LastUpdatedAt,
                 src.PromptImages != null && src.PromptImages.Any()
                     ? src.PromptImages
-                        .Where(pi => pi.Image != null) 
+                        .Where(pi => pi.Image != null)
                         .Select(pi => new ImageResponse
                         {
                             Title = pi.Image!.Title,
@@ -45,7 +45,18 @@ public class PromptProfile : Profile
                             GeneratedWith = pi.Image!.GeneratedWith,
                             Id = pi.Image!.ID
                         })
-                        .ToList() 
+                        .ToList()
+                    : null,
+                src.PromptCategories != null && src.PromptCategories.Any()
+                    ? src.PromptCategories
+                        .Where(pc => pc.Category != null)
+                        .Select(pc => new CategoryResponse
+                        {
+                            Title = pc.Category!.Title,
+                            Description = pc.Category!.Description,
+                            CategoryID = pc.Category!.ID
+                        })
+                        .ToList()
                     : null
             ));
     }

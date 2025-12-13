@@ -69,12 +69,16 @@ public class PromptRepository : IPromptRepository
 
     public async Task<Prompt?> GetPromptByConditionAsync(Expression<Func<Prompt, bool>> condition)
         => await _context.Prompts
+            .Include(p => p.PromptCategories)
+            .ThenInclude(p => p.Category)
             .Include(p => p.PromptImages)
             .ThenInclude(pi => pi.Image)
             .FirstOrDefaultAsync(condition);
 
     public async Task<IEnumerable<Prompt>> GetPromptsAsync()
         => await _context.Prompts
+            .Include(p => p.PromptCategories)
+            .ThenInclude(p => p.Category)
             .Include(p => p.PromptImages)
             .ThenInclude(pi => pi.Image)
             .OrderBy(p => p.LastUpdatedAt)
@@ -82,6 +86,8 @@ public class PromptRepository : IPromptRepository
 
     public async Task<IEnumerable<Prompt>> GetPromptsByConditionAsync(Expression<Func<Prompt, bool>> condition)
         => await _context.Prompts
+        .Include(p => p.PromptCategories)
+        .ThenInclude(p => p.Category)
         .Include(p => p.PromptImages)
         .ThenInclude(pi => pi.Image)
         .Where(condition)
