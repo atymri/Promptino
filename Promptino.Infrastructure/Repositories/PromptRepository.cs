@@ -77,6 +77,7 @@ public class PromptRepository : IPromptRepository
         => await _context.Prompts
             .Include(p => p.PromptImages)
             .ThenInclude(pi => pi.Image)
+            .OrderBy(p => p.LastUpdatedAt)
             .ToListAsync();
 
     public async Task<IEnumerable<Prompt>> GetPromptsByConditionAsync(Expression<Func<Prompt, bool>> condition)

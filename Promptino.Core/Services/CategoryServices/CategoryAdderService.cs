@@ -31,9 +31,9 @@ public class CategoryAdderService : ICategoryAdderService
             throw new CategoryExistsException(nameof(request));
 
         var category = _mapper.Map<Category>(request);
-        var response = _mapper.Map<CategoryResponse>(category);
+        var response = await _categoryRepository.AddCategoryAsync(category);
 
-        return response;
+        return _mapper.Map<CategoryResponse>(response);
     }
 
     public async Task<bool> AddPromptToCategory(AddPromptToCategoryRequest request)
