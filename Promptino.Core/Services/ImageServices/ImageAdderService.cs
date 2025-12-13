@@ -40,6 +40,9 @@ public class ImageAdderService : IImageAdderService
 
     public async Task<ImageResponse> CreateImageAsync(ImageAddRequest imageRequest)
     {
+        if (imageRequest is null)
+            throw new NullImageRequestException(nameof(imageRequest));
+
         var image = _mapper.Map<Image>(imageRequest);
         var res = await _imageRepository.AddImageAsync(image);
         return _mapper.Map<ImageResponse>(res);

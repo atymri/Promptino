@@ -20,6 +20,9 @@ public class ImageUpdaterService : IImageUpdaterService
 
     public async Task<ImageResponse?> UpdateImageAsync(ImageUpdateRequest imageRequest)
     {
+        if (imageRequest is null)
+            throw new NullImageRequestException(nameof(imageRequest));
+
         if (!await _imageRepository.DoesImageExistAsync(imageRequest.Id))
             throw new ImageNotFoundException("تصویر مورد نظر وجود ندارد");
 

@@ -42,7 +42,7 @@ public record LoginRequest
 (
     string Email,
     string Password,
-    string ConfirmPassword
+    bool RememberMe
 )
 {
     public LoginRequest() : this(default, default,default)

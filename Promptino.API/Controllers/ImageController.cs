@@ -1,85 +1,36 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Promptino.Core.DTOs;
 using Promptino.Core.ServiceContracts.ImageServiceContracts;
 using Promptino.API.Models;
-using Microsoft.AspNetCore.Authorization;
 
 namespace Promptino.API.Controllers;
 
 [Authorize(Roles = "Admin")]
-public class AdminController : BaseController
+public class ImagesController : BaseController
 {
-    private readonly IPromptAdderService _promptAdderService;
-    private readonly IPromptUpdaterService _promptUpdaterService;
-    private readonly IPromptDeleterService _promptDeleterService;
-
     private readonly IImageAdderService _imageAdderService;
     private readonly IImageUpdaterService _imageUpdaterService;
     private readonly IImageDeleterService _imageDeleterService;
     private readonly IImageGetterrService _imageGetterService;
 
-    public AdminController(
-        IPromptAdderService adderService,
-        IPromptUpdaterService updaterService,
-        IPromptDeleterService deleterService,
+    public ImagesController(
         IImageAdderService imageAdderService,
         IImageUpdaterService imageUpdaterService,
         IImageDeleterService imageDeleterService,
         IImageGetterrService imageGetterService)
     {
-        _promptAdderService = adderService;
-        _promptUpdaterService = updaterService;
-        _promptDeleterService = deleterService;
-
         _imageAdderService = imageAdderService;
         _imageUpdaterService = imageUpdaterService;
         _imageDeleterService = imageDeleterService;
         _imageGetterService = imageGetterService;
     }
 
-    // ─────────────────────────────── Prompts ───────────────────────────────
-
-    [HttpPost("prompts")]
-    [ProducesResponseType(typeof(PromptResponse), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<ActionResult<PromptResponse>> CreatePrompt([FromBody] PromptAddRequest request)
-    {
-        if (!ModelState.IsValid)
-            return ValidationProblem(ModelState);
-
-        var result = await _promptAdderService.CreatePromptAsync(request);
-        return Ok(result);
-    }
-
-    [HttpPut("prompts")]
-    [ProducesResponseType(typeof(PromptResponse), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<ActionResult<PromptResponse>> UpdatePrompt([FromBody] PromptUpdateRequest request)
-    {
-        if (!ModelState.IsValid)
-            return ValidationProblem(ModelState);
-
-        var result = await _promptUpdaterService.UpdatePromptAsync(request);
-        return Ok(result);
-    }
-
-    [HttpDelete("prompts/{id:guid}")]
-    [ProducesResponseType(typeof(bool), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<bool>> DeletePrompt(Guid id)
-    {
-        var result = await _promptDeleterService.DeletePromptAsync(id);
-        return Ok(result);
-    }
-
-
-    // ─────────────────────────────── Images ───────────────────────────────
-
     [HttpGet("images")]
     public async Task<IActionResult> GetImages()
     {
         var images = await _imageGetterService.GetAllImagesAsync();
-        return Ok(images);  
+        return Ok(images);
     }
 
     [HttpPost("[action]")]

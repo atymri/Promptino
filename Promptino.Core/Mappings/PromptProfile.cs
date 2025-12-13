@@ -33,6 +33,8 @@ public class PromptProfile : Profile
                 src.Title,
                 src.Description,
                 src.Content,
+                src.CreatedAt,
+                src.LastUpdatedAt,
                 src.PromptImages != null && src.PromptImages.Any()
                     ? src.PromptImages
                         .Where(pi => pi.Image != null) 

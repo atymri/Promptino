@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Promptino.Core.Domain.Entities;
 using Promptino.Core.DTOs;
 using Promptino.Core.ServiceContracts;
@@ -104,7 +105,7 @@ public class AuthController : BaseController
         var res = await _signInManager.PasswordSignInAsync(
             user,
             request.Password,
-            isPersistent: false,
+            isPersistent: request.RememberMe,
             lockoutOnFailure: true);
 
         if (!res.Succeeded)

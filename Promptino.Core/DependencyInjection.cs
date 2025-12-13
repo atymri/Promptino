@@ -5,8 +5,10 @@ using Microsoft.Extensions.DependencyInjection;
 using Promptino.Core.Mappings;
 using Promptino.Core.Options;
 using Promptino.Core.ServiceContracts;
+using Promptino.Core.ServiceContracts.CategoryServiceContracts;
 using Promptino.Core.ServiceContracts.ImageServiceContracts;
 using Promptino.Core.Services;
+using Promptino.Core.Services.CategoryServices;
 using Promptino.Core.Services.ImageServices;
 using Promptino.Core.Services.PromptServices;
 using Promptino.Core.Validators.PromptValidators;
@@ -32,6 +34,13 @@ public static class DependencyInjection
         services.AddScoped<IPromptAdderService, PromptAdderService>();
         services.AddScoped<IPromptUpdaterService, PromptUpdaterService>();
         services.AddScoped<IPromptDeleterService, PromptDeleterService>();
+
+        services.AddScoped<ICategoryGetterService, CategoryGetterService>();
+        services.AddScoped<ICategoryAdderService, CategoryAdderService>();
+        services.AddScoped<ICategoryUpdaterService, CategoryUpdaterService>();
+        services.AddScoped<ICategoryDeleterService, CategoryDeleterService>();
+
+
 
         services.Configure<JwtOptions>(configuration.GetSection(nameof(JwtOptions)));
 

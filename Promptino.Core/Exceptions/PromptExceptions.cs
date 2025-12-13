@@ -64,3 +64,16 @@ public class ImageLimitException : Exception
     { }
 
 }
+
+public class NullPromptRequestException : ArgumentNullException
+{
+    public NullPromptRequestException() : base()
+    { }
+
+    public NullPromptRequestException(string message) : base(message)
+    { }
+
+    public NullPromptRequestException(string message, Exception? innerException) : base(message, innerException)
+    { }
+}
+

@@ -26,6 +26,9 @@ public class PromptAdderService : IPromptAdderService
 
     public async Task<FavoritePromptResponse> AddToFavoritesAsync(FavoritePromptAddRequest favoriteRequest)
     {
+        if (favoriteRequest is null)
+            throw new NullPromptRequestException(nameof(favoriteRequest));
+
         if (await _promptRepository.IsFavoriteAsync(favoriteRequest.UserID, favoriteRequest.PromptID))
             throw new PromptExistsException("پرامپت مورد نظر در حال حاضر در علاقه مندی های شما وجود دارد");
 
@@ -43,6 +46,10 @@ public class PromptAdderService : IPromptAdderService
 
     public async Task<PromptResponse> CreatePromptAsync(PromptAddRequest promptRequest)
     {
+
+        if (promptRequest is null)
+            throw new NullPromptRequestException(nameof(promptRequest));
+
         //if (promptRequest.Images != null && promptRequest.Images.Count() > 6)
         //    throw new ImageLimitException("هر پرامپت میتواند حداکثر 6 تصویر ذخیره کند");
 

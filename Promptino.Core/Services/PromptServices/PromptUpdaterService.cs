@@ -19,6 +19,9 @@ public class PromptUpdaterService : IPromptUpdaterService
     }
     public async Task<PromptResponse?> UpdatePromptAsync(PromptUpdateRequest promptRequest)
     {
+        if (promptRequest is null)
+            throw new NullPromptRequestException(nameof(promptRequest));
+
         if (!await _promptRepository.DoesPromptExistAsync(promptRequest.Id))
             throw new PromptNotFoundExceptions("پرامپت مورد نظر وجود ندارد");
 

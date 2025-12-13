@@ -2,6 +2,7 @@
 using Promptino.Core.Domain.Entities;
 using Promptino.Core.Domain.RerpositoryContracts;
 using Promptino.Infrastructure.DatabaseContext;
+using System.Linq.Expressions;
 
 namespace Promptino.Infrastructure.Repositories;
 
@@ -64,10 +65,24 @@ public class CategoryRepository : ICategoryRepository
     public async Task<bool> DoesCategoryExistAsync(Guid categoryId)
         => await _context.Categories.AnyAsync(c => c.ID == categoryId);
 
+    public async Task<bool> DoesCategoryExistAsync(string categoryTitle)
+        => await _context.Categories.AnyAsync(c => c.Title == categoryTitle);
+
     public async Task<List<Category>> GetAllCategoriesAsync()
         => await _context.Categories
             .Include(c => c.PromptCategories)
             .ToListAsync();
+
+    public async Task<List<Category>> GetCategoriesByCondition(Expression<Func<Category, bool>> condition)
+        => await _context.Categories
+            .Include(c => c.PromptCategories)
+            .Where(condition)
+            .ToListAsync();
+
+    public async Task<Category?> GetCategoryByCondition(Expression<Func<Category, bool>> condition)
+        => await _context.Categories
+            .Include(c => c.PromptCategories)
+            .FirstOrDefaultAsync(condition);
 
     public async Task<List<Prompt>> GetCategoryPromptsAsync(string categoryName)
         => await _context.Prompts

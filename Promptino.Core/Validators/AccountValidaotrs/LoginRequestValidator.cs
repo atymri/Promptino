@@ -15,10 +15,5 @@ public class LoginRequestValidator : AbstractValidator<LoginRequest>
 
         RuleFor(req => req.Password)
             .NotEmpty().WithMessage("رمز عبور نمیتواند خالی باشد");
-
-        RuleFor(req => req.ConfirmPassword)
-            .NotEmpty().WithMessage("لطفا رمز عبور را تایید کنید")
-            .Equal(req => req.Password).WithMessage("رمز عبور و تکرار آن یکسان نیستند");
-
     }
 }

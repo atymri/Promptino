@@ -23,3 +23,16 @@ public class ImageExistsException : Exception
     public ImageExistsException(string message, Exception? innerException) : base(message, innerException)
     { }
 }
+
+public class NullImageRequestException : ArgumentNullException
+{
+    public NullImageRequestException() : base()
+    { }
+
+    public NullImageRequestException(string message) : base(message)
+    { }
+
+    public NullImageRequestException(string message, Exception? innerException) : base(message, innerException)
+    { }
+}
+
