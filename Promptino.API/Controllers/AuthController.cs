@@ -2,11 +2,17 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Infrastructure;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.AspNetCore.WebUtilities;
+using Microsoft.IdentityModel.JsonWebTokens;
+using Promptino.API.Tools;
 using Promptino.Core.Domain.Entities;
 using Promptino.Core.DTOs;
 using Promptino.Core.ServiceContracts;
 using System.Security.Claims;
+using System.Text;
+using System.Threading.Tasks;
 
 namespace Promptino.API.Controllers;
 
@@ -15,17 +21,20 @@ public class AuthController : BaseController
 {
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly SignInManager<ApplicationUser> _signInManager;
+    private readonly HtmlToString _htmlToString;
     private readonly ITokenService _tokenService;
     private readonly IMapper _mapper;
 
     public AuthController(UserManager<ApplicationUser> userManager,
         SignInManager<ApplicationUser> signinManager,
+        HtmlToString htmlToString,
         IMapper mapper,
         ITokenService tokenService)
     {
         _userManager = userManager;
         _signInManager = signinManager;
         _mapper = mapper;
+        _htmlToString = htmlToString;
         _tokenService = tokenService;
     }
 
@@ -68,13 +77,66 @@ public class AuthController : BaseController
             return Problem(string.Join(", ", res.Errors.Select(e => e.Description)),
                            statusCode: StatusCodes.Status400BadRequest,
                            title: "خطای سرور");
-        }
+            }
+
+        var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
+        token = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(token));
+
+        string? callbackUrl = Url.ActionLink(nameof(ConfirmEmail), "Auth", 
+            new { userId = user.Id, token = token }, Request.Scheme);
+
+        var body = await _htmlToString.LoadAsync(
+                "AccountVerification.html",
+                new Dictionary<string, string>
+                {
+                    ["VerificationLink"] = callbackUrl,
+                    ["Year"] = DateTime.UtcNow.Year.ToString()
+                }
+            );
+
+        await EmailSender.SendAsync(new Models.EmailModel(user.Email, "تایید حساب کاربری", body));
+        return Ok("ایمیل تایید حساب کاربری به ایمیل شما ارسال شد!");
+    }
+
+    [HttpGet]
+    public async Task<ActionResult<AuthResponse>> ConfirmEmail(string userId, string token)
+    {
+        if (string.IsNullOrWhiteSpace(userId) || string.IsNullOrWhiteSpace(token))
+            return Problem(
+                title: "درخواست نامعتبر",
+                detail: "شناسه کاربر یا توکن ارسال نشده است.",
+                statusCode: StatusCodes.Status400BadRequest
+            );
+
+        var user = await _userManager.FindByIdAsync(userId);
+
+        if (user is null)
+            return Problem(
+                title: "کاربر یافت نشد",
+                detail: "کاربری با این شناسه وجود ندارد.",
+                statusCode: StatusCodes.Status404NotFound
+            );
+
+        var decodedToken = Encoding.UTF8.GetString(
+            WebEncoders.Base64UrlDecode(token)
+        );
+
+        var result = await _userManager.ConfirmEmailAsync(user, decodedToken);
+
+        if (!result.Succeeded)
+            return Problem(
+                title: "تأیید ایمیل ناموفق",
+                detail: "توکن نامعتبر، منقضی یا قبلاً استفاده شده است.",
+                statusCode: StatusCodes.Status409Conflict
+            );
+
 
         await _signInManager.SignInAsync(user, isPersistent: false);
-        var response = _tokenService.CreateToken(user);
+        var signInResponse= _tokenService.CreateToken(user);
 
-        return response;
+        return signInResponse;
     }
+
 
     // POST: auth/login
     [HttpPost("login")]
@@ -90,6 +152,12 @@ public class AuthController : BaseController
         if (user is null)
         {
             ModelState.AddModelError("Email", "کاربری با این ایمیل یافت نشد.");
+            return ValidationProblem(ModelState);
+        }
+
+        if(!user.EmailConfirmed)
+        {
+            ModelState.AddModelError("ٍEmail", "لطفا ایمیل حساب کاربری خود را تایید کنید");
             return ValidationProblem(ModelState);
         }
 

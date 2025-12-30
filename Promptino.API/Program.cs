@@ -9,6 +9,7 @@ using Promptino.Infrastructure.DatabaseContext;
 using Microsoft.AspNetCore.Identity;
 using Promptino.Core.Exceptions;
 using Promptino.API.Middlewares;
+using Promptino.API.Tools;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -54,6 +55,7 @@ builder.Services.AddAuthentication(options =>
 
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddCore(builder.Configuration);
+builder.Services.AddScoped<HtmlToString>();
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
