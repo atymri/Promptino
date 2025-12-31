@@ -23,6 +23,25 @@ public record AuthResponse
     { }
 };
 
+
+public record ForgotPasswordRequest(
+    string Email,
+    string ClientUri
+    );
+
+public record ResetPasswordRequest(
+        string Password,
+        string ConfirmPassword,
+        string Token,
+        string Email
+    );
+
+public record RegisterResponse(
+      string UserEmail,
+      bool Success,
+      string Message
+    );
+
 public record RegisterRequest
 (
     string FirstName,

@@ -2,17 +2,14 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Infrastructure;
-using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.WebUtilities;
-using Microsoft.IdentityModel.JsonWebTokens;
 using Promptino.API.Tools;
 using Promptino.Core.Domain.Entities;
 using Promptino.Core.DTOs;
 using Promptino.Core.ServiceContracts;
+using System.Net.WebSockets;
 using System.Security.Claims;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace Promptino.API.Controllers;
 
@@ -42,7 +39,7 @@ public class AuthController : BaseController
     [HttpPost("register")]
     [ProducesResponseType(typeof(AuthResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<ActionResult<AuthResponse>> Register(RegisterRequest request)
+    public async Task<ActionResult<RegisterResponse>> Register(RegisterRequest request)
     {
         if (!ModelState.IsValid)
             return ValidationProblem(ModelState);
@@ -89,13 +86,24 @@ public class AuthController : BaseController
                 "AccountVerification.html",
                 new Dictionary<string, string>
                 {
+                    ["FirstName"] = user.FirstName,
+                    ["LastName"] = user.LastName,
                     ["VerificationLink"] = callbackUrl,
                     ["Year"] = DateTime.UtcNow.Year.ToString()
                 }
             );
 
-        await EmailSender.SendAsync(new Models.EmailModel(user.Email, "تایید حساب کاربری", body));
-        return Ok("ایمیل تایید حساب کاربری به ایمیل شما ارسال شد!");
+        try
+        {
+            await EmailSender.SendAsync(new Models.EmailModel(user.Email, "تایید حساب کاربری", body));
+        }
+        catch
+        {
+            return new RegisterResponse(user.Email!, 
+                false, "خطا در ارسال ایمیل, لطفا بعدا امتحان کنید");
+        }
+        return new RegisterResponse(user.Email!, 
+            true, "ایمیل تایید ارسال شد, لطفا ایمیل های خود را برسی کنید");
     }
 
     [HttpGet]
@@ -137,6 +145,76 @@ public class AuthController : BaseController
         return signInResponse;
     }
 
+    [HttpPost("forget-password")]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<IActionResult> ForgetPassword([FromBody] ForgotPasswordRequest request)
+    {
+        if (!ModelState.IsValid)
+            return ValidationProblem(ModelState);
+
+        var user = await _userManager.FindByEmailAsync(request.Email);
+        if (user is null)
+            return BadRequest("درخواست نامعتبر");
+
+        var token = await _userManager.GeneratePasswordResetTokenAsync(user);
+        var encodedToken = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(token));
+
+        var param= new Dictionary<string, string?>()
+        {
+            {"token", token },
+            {"email", request.Email}
+        };
+
+        var callback = QueryHelpers.AddQueryString(request.ClientUri, param);
+        var body = await _htmlToString.LoadAsync(
+                "ResetPassword.html",
+                new Dictionary<string, string>
+                {
+                    ["FirstName"] = user.FirstName,
+                    ["LastName"] = user.LastName,
+                    ["ResetLink"] = callback,
+                    ["Year"] = DateTime.UtcNow.Year.ToString()
+                }
+            );
+
+        try
+        {
+            await EmailSender.SendAsync(new Models.EmailModel(request.Email, "بازیابی رمز عبور", body));
+        }
+        catch
+        {
+            return Problem("خطا در ارسال ایمیل", "مشکلی در ارسال ایمیل بازیابی رمز عبور پیش آمده است",
+                statusCode: StatusCodes.Status500InternalServerError);
+        }
+        return Ok();
+    }
+
+    [HttpPost("reset-password")]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request)
+    {
+        if (!ModelState.IsValid)
+            return ValidationProblem(ModelState);
+
+        var user = await _userManager.FindByEmailAsync(request.Email);
+        if (user is null)
+            return BadRequest("درخواست نامعتبر");
+
+        var decodedToken = Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(request.Token));
+        var result = await _userManager.ResetPasswordAsync(user, decodedToken, request.Password);
+
+        if (!result.Succeeded)
+        {
+            var errors = result.Errors.Select(e => e.Description);
+            return Problem("خطا در بازیابی رمز عبور", string.Join('|', errors),
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        return Ok();
+    }
 
     // POST: auth/login
     [HttpPost("login")]
@@ -157,7 +235,7 @@ public class AuthController : BaseController
 
         if(!user.EmailConfirmed)
         {
-            ModelState.AddModelError("ٍEmail", "لطفا ایمیل حساب کاربری خود را تایید کنید");
+            ModelState.AddModelError("Email", "لطفا ایمیل حساب کاربری خود را تایید کنید");
             return ValidationProblem(ModelState);
         }
 
@@ -208,6 +286,7 @@ public class AuthController : BaseController
 
     // GET: auth/logout
     [HttpGet("logout")]
+    [Authorize]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> Logout()
     {
@@ -217,6 +296,7 @@ public class AuthController : BaseController
 
     // POST: auth/new-access-token
     [HttpPost("new-access-token")]
+    [Authorize]
     [ProducesResponseType(typeof(AuthResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<AuthResponse>> NewAccessToken(RefreshTokenRequest request)

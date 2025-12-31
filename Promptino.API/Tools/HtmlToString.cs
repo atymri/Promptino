@@ -1,5 +1,6 @@
 ﻿using System.Text;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.Primitives;
 
 namespace Promptino.API.Tools;
 public sealed class HtmlToString

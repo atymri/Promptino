@@ -8,7 +8,7 @@ public static class EmailSender
 {
     public static async Task SendAsync(EmailModel emailModel)
     {
-        var address = "amirmahditeymoori123@gmail.com";
+        var address = "promptino.ai@gmail.com";
         var message = new MailMessage()
         {
             From = new MailAddress(address, "پرامپتینو"),
@@ -20,7 +20,7 @@ public static class EmailSender
 
         var client = new SmtpClient("smtp.gmail.com", 587)
         {
-            Credentials = new NetworkCredential(address, "abak aape zjrg shvr"),
+            Credentials = new NetworkCredential(address, "dpoe roxm kwyr mraf"),
             EnableSsl = true
         };
 
