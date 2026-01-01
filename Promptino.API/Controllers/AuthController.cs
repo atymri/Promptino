@@ -3,11 +3,9 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
-using Promptino.API.Tools;
 using Promptino.Core.Domain.Entities;
 using Promptino.Core.DTOs;
 using Promptino.Core.ServiceContracts;
-using System.Net.WebSockets;
 using System.Security.Claims;
 using System.Text;
 
@@ -18,21 +16,21 @@ public class AuthController : BaseController
 {
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly SignInManager<ApplicationUser> _signInManager;
-    private readonly HtmlToString _htmlToString;
     private readonly ITokenService _tokenService;
+    private readonly IEmailService _mailService;
     private readonly IMapper _mapper;
 
     public AuthController(UserManager<ApplicationUser> userManager,
         SignInManager<ApplicationUser> signinManager,
-        HtmlToString htmlToString,
         IMapper mapper,
-        ITokenService tokenService)
+        ITokenService tokenService,
+        IEmailService mailService)
     {
         _userManager = userManager;
         _signInManager = signinManager;
         _mapper = mapper;
-        _htmlToString = htmlToString;
         _tokenService = tokenService;
+        _mailService = mailService;
     }
 
     // POST: auth/register
@@ -74,35 +72,36 @@ public class AuthController : BaseController
             return Problem(string.Join(", ", res.Errors.Select(e => e.Description)),
                            statusCode: StatusCodes.Status400BadRequest,
                            title: "خطای سرور");
-            }
+        }
 
         var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
         token = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(token));
 
-        string? callbackUrl = Url.ActionLink(nameof(ConfirmEmail), "Auth", 
+        string? callbackUrl = Url.ActionLink(nameof(ConfirmEmail), "Auth",
             new { userId = user.Id, token = token }, Request.Scheme);
 
-        var body = await _htmlToString.LoadAsync(
-                "AccountVerification.html",
-                new Dictionary<string, string>
+        var body = await _mailService.ConvertHtmlAsync(
+            new HtmlConvertorModel(
+                FileName: "AccountVerification.html",
+                Values: new Dictionary<string, string>
                 {
                     ["FirstName"] = user.FirstName,
                     ["LastName"] = user.LastName,
                     ["VerificationLink"] = callbackUrl,
                     ["Year"] = DateTime.UtcNow.Year.ToString()
                 }
+                )
             );
-
         try
         {
-            await EmailSender.SendAsync(new Models.EmailModel(user.Email, "تایید حساب کاربری", body));
+            _mailService.Send(new EmailModel(user.Email, "تایید حساب کاربری", body));
         }
         catch
         {
-            return new RegisterResponse(user.Email!, 
+            return new RegisterResponse(user.Email!,
                 false, "خطا در ارسال ایمیل, لطفا بعدا امتحان کنید");
         }
-        return new RegisterResponse(user.Email!, 
+        return new RegisterResponse(user.Email!,
             true, "ایمیل تایید ارسال شد, لطفا ایمیل های خود را برسی کنید");
     }
 
@@ -140,7 +139,7 @@ public class AuthController : BaseController
 
 
         await _signInManager.SignInAsync(user, isPersistent: false);
-        var signInResponse= _tokenService.CreateToken(user);
+        var signInResponse = _tokenService.CreateToken(user);
 
         return signInResponse;
     }
@@ -161,27 +160,29 @@ public class AuthController : BaseController
         var token = await _userManager.GeneratePasswordResetTokenAsync(user);
         var encodedToken = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(token));
 
-        var param= new Dictionary<string, string?>()
+        var param = new Dictionary<string, string?>()
         {
             {"token", token },
             {"email", request.Email}
         };
 
         var callback = QueryHelpers.AddQueryString(request.ClientUri, param);
-        var body = await _htmlToString.LoadAsync(
-                "ResetPassword.html",
-                new Dictionary<string, string>
+        var body = await _mailService.ConvertHtmlAsync(
+            new HtmlConvertorModel(
+                FileName: "ResetPassword.html",
+                Values: new Dictionary<string, string>
                 {
                     ["FirstName"] = user.FirstName,
                     ["LastName"] = user.LastName,
                     ["ResetLink"] = callback,
                     ["Year"] = DateTime.UtcNow.Year.ToString()
                 }
+                )
             );
 
         try
         {
-            await EmailSender.SendAsync(new Models.EmailModel(request.Email, "بازیابی رمز عبور", body));
+            _mailService.Send(new EmailModel(request.Email, "بازیابی رمز عبور", body));
         }
         catch
         {
@@ -233,7 +234,7 @@ public class AuthController : BaseController
             return ValidationProblem(ModelState);
         }
 
-        if(!user.EmailConfirmed)
+        if (!user.EmailConfirmed)
         {
             ModelState.AddModelError("Email", "لطفا ایمیل حساب کاربری خود را تایید کنید");
             return ValidationProblem(ModelState);

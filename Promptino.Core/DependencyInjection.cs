@@ -24,6 +24,7 @@ public static class DependencyInjection
         services.AddFluentValidationAutoValidation().AddFluentValidationClientsideAdapters();
         services.AddValidatorsFromAssemblyContaining<PrormptAddRerquestValidator>();
         services.AddScoped<ITokenService, TokenService>();
+        services.AddScoped<IEmailService, EmailService>();
 
         services.AddScoped<IImageGetterrService, ImageGetterService>();
         services.AddScoped<IImageAdderService, ImageAdderService>();
@@ -43,6 +44,7 @@ public static class DependencyInjection
 
 
         services.Configure<JwtOptions>(configuration.GetSection(nameof(JwtOptions)));
+        services.Configure<EmailCredentials>(configuration.GetSection(nameof(EmailCredentials)));
 
 
         return services;
