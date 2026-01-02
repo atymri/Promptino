@@ -15,10 +15,10 @@ internal class EmailService : IEmailService
     private readonly EmailCredentials _creds;
 
     public EmailService(IWebHostEnvironment env,
-        IOptions<EmailCredentials> creds)
+        IOptionsMonitor<EmailCredentials> creds)
     {
         _env = env;
-        _creds = creds.Value;
+        _creds = creds.CurrentValue; // changed IOptions to IOptionsMonitor, in case of sudden changes.
     }
 
     public async Task<string> ConvertHtmlAsync(HtmlConvertorModel convertorModel)
