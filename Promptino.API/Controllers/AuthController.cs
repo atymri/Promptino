@@ -94,12 +94,14 @@ public class AuthController : BaseController
             );
         try
         {
-            _mailService.Send(new EmailModel(user.Email, "تایید حساب کاربری", body));
+            await _mailService.SendAsync(new EmailModel(user.Email, "تایید حساب کاربری", body));
         }
         catch
         {
-            return new RegisterResponse(user.Email!,
-                false, "خطا در ارسال ایمیل, لطفا بعدا امتحان کنید");
+            await _userManager.DeleteAsync(user);
+            return Problem(title: "خطا در ارسال ایمیل",
+                detail: "مشکلی هنگام ارسال ایمیل تایید پیش آمد, لطفا بعدا دوباره امتحان کنید",
+                statusCode: StatusCodes.Status500InternalServerError);
         }
         return new RegisterResponse(user.Email!,
             true, "ایمیل تایید ارسال شد, لطفا ایمیل های خود را برسی کنید");
@@ -182,7 +184,7 @@ public class AuthController : BaseController
 
         try
         {
-            _mailService.Send(new EmailModel(request.Email, "بازیابی رمز عبور", body));
+            await _mailService.SendAsync(new EmailModel(request.Email, "بازیابی رمز عبور", body));
         }
         catch
         {
@@ -264,7 +266,8 @@ public class AuthController : BaseController
                 user.LockoutMultiplier *= 2;
                 await _userManager.UpdateAsync(user);
 
-                ModelState.AddModelError("Password", $"رمز عبور اشتباه است. حساب شما برای {lockoutMinutes} دقیقه قفل شد.");
+                ModelState.AddModelError("Password", 
+                    $"رمز عبور اشتباه است. حساب شما برای {lockoutMinutes} دقیقه قفل شد.");
             }
             else
             {
