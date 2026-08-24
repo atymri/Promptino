@@ -48,8 +48,15 @@ public class ExceptionHandlingMiddleware
         {
             case ImageNotFoundException:
             case PromptNotFoundExceptions:
+            case CommentNotFoundException:
                 statusCode = StatusCodes.Status404NotFound;
                 title = "مورد پیدا نشد";
+                break;
+
+            case PromptOwnershipException:
+            case CommentOwnershipException:
+                statusCode = StatusCodes.Status403Forbidden;
+                title = "اجازه انجام این عملیات را ندارید";
                 break;
 
             case ImageExistsException:

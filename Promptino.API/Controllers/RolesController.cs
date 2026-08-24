@@ -9,9 +9,9 @@ using Promptino.Core.DTOs;
 public class RolesController : BaseController
 {
     private readonly RoleManager<ApplicationRole> _roleManager;
-    private readonly UserManager<IdentityUser> _userManager;
+    private readonly UserManager<ApplicationUser> _userManager;
 
-    public RolesController(RoleManager<ApplicationRole> roleManager, UserManager<IdentityUser> userManager)
+    public RolesController(RoleManager<ApplicationRole> roleManager, UserManager<ApplicationUser> userManager)
     {
         _roleManager = roleManager;
         _userManager = userManager;

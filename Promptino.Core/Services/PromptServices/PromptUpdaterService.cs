@@ -1,4 +1,4 @@
-﻿using AutoMapper;
+using AutoMapper;
 using Promptino.Core.Domain.Entities;
 using Promptino.Core.Domain.RepositoryContracts;
 using Promptino.Core.DTOs;
@@ -17,13 +17,18 @@ public class PromptUpdaterService : IPromptUpdaterService
         _promptRepository = promptRepository;
         _mapper = mapper;
     }
-    public async Task<PromptResponse?> UpdatePromptAsync(PromptUpdateRequest promptRequest)
+
+    public async Task<PromptResponse?> UpdatePromptAsync(PromptUpdateRequest promptRequest, Guid currentUserId, bool isAdmin)
     {
         if (promptRequest is null)
             throw new NullPromptRequestException(nameof(promptRequest));
 
-        if (!await _promptRepository.DoesPromptExistAsync(promptRequest.Id))
+        var existingPrompt = await _promptRepository.GetPromptByConditionAsync(p => p.ID == promptRequest.Id);
+        if (existingPrompt is null)
             throw new PromptNotFoundExceptions("پرامپت مورد نظر وجود ندارد");
+
+        if (!isAdmin && existingPrompt.UserID != currentUserId)
+            throw new PromptOwnershipException("شما اجازه ویرایش این پرامپت را ندارید");
 
         var prompt = _mapper.Map<Prompt>(promptRequest);
         var res = await _promptRepository.UpdatePromptAsync(prompt);

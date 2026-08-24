@@ -1,4 +1,4 @@
-﻿using Promptino.Core.Domain.RepositoryContracts;
+using Promptino.Core.Domain.RepositoryContracts;
 using Promptino.Core.Exceptions;
 using Promptino.Core.ServiceContracts.ImageServiceContracts;
 
@@ -12,20 +12,15 @@ public class PromptDeleterService : IPromptDeleterService
         _promptReposiotry = promptReposiotry;
     }
 
-    public async Task<bool> DeletePromptAsync(Guid id)
+    public async Task<bool> DeletePromptAsync(Guid id, Guid currentUserId, bool isAdmin)
     {
         if (!await _promptReposiotry.DoesPromptExistAsync(id))
             throw new PromptNotFoundExceptions("پرامپت مورد نظر وجود ندارد");
 
+        var ownerId = await _promptReposiotry.GetPromptOwnerIdAsync(id);
+        if (!isAdmin && ownerId != currentUserId)
+            throw new PromptOwnershipException("شما اجازه حذف این پرامپت را ندارید");
+
         return await _promptReposiotry.DeletePromptAsync(id);
-    }
-
-    public async Task<bool> RemoveFromFavoritesAsync(Guid userId, Guid promptId)
-    {
-        var isFavorite = await _promptReposiotry.IsFavoriteAsync(userId, promptId);
-        if (!isFavorite)
-            throw new PromptNotFoundExceptions("پرامپت مورد نظر در مورد علاقه ها وجود ندارد");
-
-        return await _promptReposiotry.RemoveFromFavoritesAsync(userId, promptId);
     }
 }

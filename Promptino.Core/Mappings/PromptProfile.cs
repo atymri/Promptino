@@ -1,9 +1,6 @@
-﻿using AutoMapper;
+using AutoMapper;
 using Promptino.Core.Domain.Entities;
 using Promptino.Core.DTOs;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 
 namespace Promptino.Core.Mappings;
 
@@ -16,8 +13,11 @@ public class PromptProfile : Profile
             .ForMember(dest => dest.Title, opt => opt.MapFrom(src => src.Title))
             .ForMember(dest => dest.Description, opt => opt.MapFrom(src => src.Description))
             .ForMember(dest => dest.Content, opt => opt.MapFrom(src => src.Content))
-            //.ForMember(dest => dest.PromptImages, opt => opt.MapFrom(src => src.Images))
-            .ForMember(dest => dest.FavoritePrompts, opt => opt.Ignore());
+            .ForMember(dest => dest.UserID, opt => opt.Ignore())
+            .ForMember(dest => dest.User, opt => opt.Ignore())
+            .ForMember(dest => dest.SavedPrompts, opt => opt.Ignore())
+            .ForMember(dest => dest.Comments, opt => opt.Ignore())
+            .ForMember(dest => dest.Reactions, opt => opt.Ignore());
 
         CreateMap<PromptUpdateRequest, Prompt>()
             .ForMember(dest => dest.ID, opt => opt.MapFrom(src => src.Id))
@@ -25,7 +25,11 @@ public class PromptProfile : Profile
             .ForMember(dest => dest.Description, opt => opt.MapFrom(src => src.Description))
             .ForMember(dest => dest.Content, opt => opt.MapFrom(src => src.Content))
             .ForMember(dest => dest.PromptImages, opt => opt.Ignore())
-            .ForMember(dest => dest.FavoritePrompts, opt => opt.Ignore());
+            .ForMember(dest => dest.UserID, opt => opt.Ignore())
+            .ForMember(dest => dest.User, opt => opt.Ignore())
+            .ForMember(dest => dest.SavedPrompts, opt => opt.Ignore())
+            .ForMember(dest => dest.Comments, opt => opt.Ignore())
+            .ForMember(dest => dest.Reactions, opt => opt.Ignore());
 
         CreateMap<Prompt, PromptResponse>()
             .ConstructUsing(src => new PromptResponse(
@@ -57,7 +61,20 @@ public class PromptProfile : Profile
                             CategoryID = pc.Category!.ID
                         })
                         .ToList()
-                    : null
+                    : null,
+                src.UserID,
+                ResolveAuthorName(src.User),
+                src.Reactions != null ? src.Reactions.Count(r => r.Type == ReactionType.Like) : 0,
+                src.Reactions != null ? src.Reactions.Count(r => r.Type == ReactionType.Dislike) : 0,
+                src.Comments != null ? src.Comments.Count : 0,
+                src.SavedPrompts != null ? src.SavedPrompts.Count : 0
             ));
+    }
+
+    internal static string ResolveAuthorName(ApplicationUser? user)
+    {
+        if (user is null) return string.Empty;
+        var name = $"{user.FirstName} {user.LastName}".Trim();
+        return name.Length > 0 ? name : user.UserName ?? string.Empty;
     }
 }

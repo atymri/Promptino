@@ -31,7 +31,7 @@ public class ImageServicesTests
             cfg.CreateMap<ImageAddRequest, Image>();
             cfg.CreateMap<ImageUpdateRequest, Image>()
                 .ForMember(dest => dest.ID, opt => opt.MapFrom(src => src.Id));
-        });
+        }, Microsoft.Extensions.Logging.Abstractions.NullLoggerFactory.Instance);
         _mapper = config.CreateMapper();
     }
 

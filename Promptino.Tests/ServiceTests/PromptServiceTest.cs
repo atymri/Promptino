@@ -1,4 +1,4 @@
-﻿using AutoMapper;
+using AutoMapper;
 using Moq;
 using System.Linq.Expressions;
 using Promptino.Core.Domain.Entities;
@@ -20,20 +20,17 @@ public class PromptServiceTest
         var config = new MapperConfiguration(cfg =>
         {
             cfg.AddMaps(AppDomain.CurrentDomain.GetAssemblies());
-        });
+        }, Microsoft.Extensions.Logging.Abstractions.NullLoggerFactory.Instance);
 
         _mapper = config.CreateMapper();
     }
 
     #region Helpers
-    private static Prompt MakePrompt(Guid? id = null, string title = "title") =>
-        new Prompt { ID = id ?? Guid.NewGuid(), Title = title, Description = "desc", Content = "content" };
+    private static Prompt MakePrompt(Guid? id = null, string title = "title", Guid? ownerId = null) =>
+        new Prompt { ID = id ?? Guid.NewGuid(), Title = title, Description = "desc", Content = "content", UserID = ownerId ?? Guid.NewGuid() };
 
     private static Image MakeImage(Guid? id = null, string title = "img") =>
         new Image { ID = id ?? Guid.NewGuid(), Title = title, Path = "/p", GeneratedWith = "g" };
-
-    private static PromptResponse MakePromptResponse(Prompt p) =>
-        new PromptResponse(p.ID, p.Title, p.Description, p.Content, null);
     #endregion
 
     // ------------------------------------------------------------
@@ -43,7 +40,7 @@ public class PromptServiceTest
     #region AdderTests
 
     [Fact]
-    public async Task CreatePromptAsync_ShouldThrow_WhenImagesMoreThanSix()
+    public async Task CreatePromptAsync_ShouldThrow_WhenOwnerIdEmpty()
     {
         var mockPromptRepo = new Mock<IPromptRepository>();
         var mockPromptImageRepo = new Mock<IPromptImageRepository>();
@@ -54,144 +51,46 @@ public class PromptServiceTest
             _mapper
         );
 
-        var images = Enumerable.Range(1, 7).Select(x => new ImageAddRequest("t", "p", "g"));
-        var req = new PromptAddRequest("title", "desc", "content", images);
+        var req = new PromptAddRequest("title", "desc", "content");
 
-        await Assert.ThrowsAsync<ImageLimitException>(() => service.CreatePromptAsync(req));
+        await Assert.ThrowsAsync<ArgumentException>(() => service.CreatePromptAsync(req, Guid.Empty));
     }
 
     [Fact]
-    public async Task CreatePromptAsync_ShouldCallRepository_WhenValid_NoImages()
+    public async Task CreatePromptAsync_ShouldSetOwner_WhenValid()
     {
         var mockPromptRepo = new Mock<IPromptRepository>();
         var mockPromptImageRepo = new Mock<IPromptImageRepository>();
 
-        var prompt = MakePrompt();
-        var resp = MakePromptResponse(prompt);
+        var ownerId = Guid.NewGuid();
+        Prompt captured = null;
 
-        mockPromptImageRepo
-            .Setup(r => r.CreatePromptWithImagesAsync(It.IsAny<PromptAddRequest>()))
-            .ReturnsAsync(resp);
+        mockPromptRepo
+            .Setup(r => r.AddPromptAsync(It.IsAny<Prompt>()))
+            .Callback<Prompt>(p => { p.ID = Guid.NewGuid(); captured = p; })
+            .ReturnsAsync((Prompt p) => p);
 
         var service = new PromptAdderService(mockPromptImageRepo.Object, mockPromptRepo.Object, _mapper);
 
-        var req = new PromptAddRequest("title", "desc", "content", null);
+        var req = new PromptAddRequest("title", "desc", "content");
 
-        var result = await service.CreatePromptAsync(req);
+        var result = await service.CreatePromptAsync(req, ownerId);
 
         Assert.NotNull(result);
-        mockPromptImageRepo.Verify(r => r.CreatePromptWithImagesAsync(It.Is<PromptAddRequest>(p => p.Title == "title")), Times.Once);
+        Assert.Equal(ownerId, captured.UserID);
+        Assert.Equal(ownerId, result.AuthorId);
+        mockPromptRepo.Verify(r => r.AddPromptAsync(It.Is<Prompt>(p => p.UserID == ownerId)), Times.Once);
     }
 
     [Fact]
-    public async Task CreatePromptAsync_ShouldCallRepository_WhenValid_WithImages()
+    public async Task CreatePromptAsync_ShouldThrow_WhenRequestNull()
     {
         var mockPromptRepo = new Mock<IPromptRepository>();
         var mockPromptImageRepo = new Mock<IPromptImageRepository>();
 
-        var prompt = MakePrompt();
-        var resp = MakePromptResponse(prompt);
-
-        mockPromptImageRepo
-            .Setup(r => r.CreatePromptWithImagesAsync(It.IsAny<PromptAddRequest>()))
-            .ReturnsAsync(resp);
-
-        var imgs = new[] { new ImageAddRequest("t1", "/p1", "g1"), new ImageAddRequest("t2", "/p2", "g2") };
-
         var service = new PromptAdderService(mockPromptImageRepo.Object, mockPromptRepo.Object, _mapper);
 
-        var req = new PromptAddRequest("title", "desc", "content", imgs);
-
-        var result = await service.CreatePromptAsync(req);
-
-        Assert.NotNull(result);
-        mockPromptImageRepo.Verify(r => r.CreatePromptWithImagesAsync(It.Is<PromptAddRequest>(p => p.Images != null && p.Images.Count() == 2)), Times.Once);
-    }
-
-    [Fact]
-    public async Task CreatePromptAsync_ShouldThrow_WhenPromptImageRepoThrows()
-    {
-        var mockPromptRepo = new Mock<IPromptRepository>();
-        var mockPromptImageRepo = new Mock<IPromptImageRepository>();
-
-        mockPromptImageRepo
-            .Setup(r => r.CreatePromptWithImagesAsync(It.IsAny<PromptAddRequest>()))
-            .ThrowsAsync(new InvalidOperationException("db error"));
-
-        var service = new PromptAdderService(mockPromptImageRepo.Object, mockPromptRepo.Object, _mapper);
-
-        var req = new PromptAddRequest("title", "desc", "content", null);
-
-        await Assert.ThrowsAsync<InvalidOperationException>(() => service.CreatePromptAsync(req));
-    }
-
-    [Fact]
-    public async Task CreatePromptAsync_ShouldReturnNullMapping_WhenRepoReturnsNull()
-    {
-        var mockPromptRepo = new Mock<IPromptRepository>();
-        var mockPromptImageRepo = new Mock<IPromptImageRepository>();
-
-        mockPromptImageRepo
-            .Setup(r => r.CreatePromptWithImagesAsync(It.IsAny<PromptAddRequest>()))
-            .ReturnsAsync((PromptResponse)null);
-
-        var service = new PromptAdderService(mockPromptImageRepo.Object, mockPromptRepo.Object, _mapper);
-
-        var req = new PromptAddRequest("title", "desc", "content", null);
-
-        var result = await service.CreatePromptAsync(req);
-
-        Assert.Null(result);
-    }
-
-    [Fact]
-    public async Task AddToFavoritesAsync_ShouldThrow_WhenAddToFavoritesFails()
-    {
-        var mockPromptRepo = new Mock<IPromptRepository>();
-        var mockPromptImageRepo = new Mock<IPromptImageRepository>();
-
-        mockPromptRepo.Setup(r => r.AddToFavoritesAsync(It.IsAny<FavoritePrompts>())).ReturnsAsync(false);
-
-        var service = new PromptAdderService(mockPromptImageRepo.Object, mockPromptRepo.Object, _mapper);
-
-        var req = new FavoritePromptAddRequest(Guid.NewGuid(), Guid.NewGuid());
-
-        await Assert.ThrowsAsync<Exception>(() => service.AddToFavoritesAsync(req));
-    }
-
-    [Fact]
-    public async Task AddToFavoritesAsync_ShouldReturnResponse_WhenSuccess()
-    {
-        var mockPromptRepo = new Mock<IPromptRepository>();
-        var mockPromptImageRepo = new Mock<IPromptImageRepository>();
-
-        mockPromptRepo.Setup(r => r.AddToFavoritesAsync(It.IsAny<FavoritePrompts>())).ReturnsAsync(true);
-
-        var service = new PromptAdderService(mockPromptImageRepo.Object, mockPromptRepo.Object, _mapper);
-
-        var req = new FavoritePromptAddRequest(Guid.NewGuid(), Guid.NewGuid());
-
-        var res = await service.AddToFavoritesAsync(req);
-
-        Assert.NotNull(res);
-        Assert.Equal(req.PromptID, res.PromptId);
-        Assert.Equal(req.UserID, res.UserId);
-    }
-
-    [Fact]
-    public async Task AddToFavoritesAsync_ShouldThrow_WhenRepositoryThrows()
-    {
-        var mockPromptRepo = new Mock<IPromptRepository>();
-        var mockPromptImageRepo = new Mock<IPromptImageRepository>();
-
-        mockPromptRepo.Setup(r => r.AddToFavoritesAsync(It.IsAny<FavoritePrompts>()))
-                      .ThrowsAsync(new InvalidOperationException("db"));
-
-        var service = new PromptAdderService(mockPromptImageRepo.Object, mockPromptRepo.Object, _mapper);
-
-        var req = new FavoritePromptAddRequest(Guid.NewGuid(), Guid.NewGuid());
-
-        await Assert.ThrowsAsync<InvalidOperationException>(() => service.AddToFavoritesAsync(req));
+        await Assert.ThrowsAnyAsync<ArgumentNullException>(() => service.CreatePromptAsync(null, Guid.NewGuid()));
     }
 
     #endregion
@@ -199,7 +98,7 @@ public class PromptServiceTest
     // ------------------------------------------------------------
     // PromptGetterService Tests
     // ------------------------------------------------------------
-    
+
     #region GetterTests
 
     [Fact]
@@ -209,14 +108,16 @@ public class PromptServiceTest
 
         var list = new List<Prompt> { MakePrompt(title: "A"), MakePrompt(title: "B") };
 
-        mockPromptRepo.Setup(r => r.GetPromptsAsync()).ReturnsAsync(list);
+        mockPromptRepo
+            .Setup(r => r.GetPromptsPagedAsync(It.IsAny<int>(), It.IsAny<int>()))
+            .ReturnsAsync((list.Count, (IReadOnlyList<Prompt>)list));
 
         var service = new PromptGetterService(mockPromptRepo.Object, _mapper);
 
         var result = await service.GetAllPromptsAsync();
 
-        Assert.Equal(2, result.Count());
-        Assert.Contains(result, r => r.Title == "A");
+        Assert.Equal(2, result.Items.Count);
+        Assert.Contains(result.Items, r => r.Title == "A");
     }
 
     [Fact]
@@ -224,13 +125,73 @@ public class PromptServiceTest
     {
         var mockPromptRepo = new Mock<IPromptRepository>();
 
-        mockPromptRepo.Setup(r => r.GetPromptsAsync()).ReturnsAsync(new List<Prompt>());
+        mockPromptRepo
+            .Setup(r => r.GetPromptsPagedAsync(It.IsAny<int>(), It.IsAny<int>()))
+            .ReturnsAsync((0, (IReadOnlyList<Prompt>)new List<Prompt>()));
 
         var service = new PromptGetterService(mockPromptRepo.Object, _mapper);
 
         var result = await service.GetAllPromptsAsync();
 
-        Assert.Empty(result);
+        Assert.Empty(result.Items);
+    }
+
+    [Fact]
+    public async Task GetPromptsByOwnerAsync_ShouldThrow_WhenUserIdEmpty()
+    {
+        var mockPromptRepo = new Mock<IPromptRepository>();
+        var service = new PromptGetterService(mockPromptRepo.Object, _mapper);
+
+        await Assert.ThrowsAsync<ArgumentException>(() => service.GetPromptsByOwnerAsync(Guid.Empty));
+    }
+
+    [Fact]
+    public async Task GetPromptsByOwnerAsync_ShouldReturnOwnedPromptsOnly()
+    {
+        var mockPromptRepo = new Mock<IPromptRepository>();
+        var ownerId = Guid.NewGuid();
+
+        var list = new List<Prompt>
+        {
+            MakePrompt(title: "mine-1", ownerId: ownerId),
+            MakePrompt(title: "mine-2", ownerId: ownerId)
+        };
+
+        mockPromptRepo.Setup(r => r.GetPromptsByOwnerAsync(ownerId)).ReturnsAsync(list);
+
+        var service = new PromptGetterService(mockPromptRepo.Object, _mapper);
+
+        var result = await service.GetPromptsByOwnerAsync(ownerId);
+
+        Assert.Equal(2, result.Count());
+    }
+
+    [Fact]
+    public async Task GetAllPromptsAsync_ShouldIncludeCounts_AndAuthorName()
+    {
+        var mockPromptRepo = new Mock<IPromptRepository>();
+
+        var owner = new ApplicationUser { Id = Guid.NewGuid(), UserName = "owner@example.com" };
+        var prompt = MakePrompt(ownerId: owner.Id);
+        prompt.User = owner;
+        prompt.Reactions.Add(new PromptReaction { Type = ReactionType.Like });
+        prompt.Reactions.Add(new PromptReaction { Type = ReactionType.Dislike });
+        prompt.Comments.Add(new Comment { Content = "hi" });
+        prompt.SavedPrompts.Add(new SavedPrompt());
+
+        mockPromptRepo
+            .Setup(r => r.GetPromptsPagedAsync(It.IsAny<int>(), It.IsAny<int>()))
+            .ReturnsAsync((1, (IReadOnlyList<Prompt>)new List<Prompt> { prompt }));
+
+        var service = new PromptGetterService(mockPromptRepo.Object, _mapper);
+
+        var result = (await service.GetAllPromptsAsync()).Items.Single();
+
+        Assert.Equal(1, result.LikesCount);
+        Assert.Equal(1, result.DislikesCount);
+        Assert.Equal(1, result.CommentsCount);
+        Assert.Equal(1, result.SavesCount);
+        Assert.Equal("owner@example.com", result.AuthorName);
     }
 
     [Fact]
@@ -277,87 +238,6 @@ public class PromptServiceTest
     }
 
     [Fact]
-    public async Task GetPromptsByConditionAsync_ShouldReturnList_WhenMatches()
-    {
-        var mockPromptRepo = new Mock<IPromptRepository>();
-        var data = new List<Prompt> { MakePrompt(Guid.NewGuid(), "A"), MakePrompt(Guid.NewGuid(), "B") };
-
-        mockPromptRepo.Setup(r => r.GetPromptsByConditionAsync(It.IsAny<Expression<Func<Prompt, bool>>>())).ReturnsAsync(data);
-
-        var service = new PromptGetterService(mockPromptRepo.Object, _mapper);
-
-        Expression<Func<PromptResponse, bool>> cond = p => p.Title.Contains("A") || p.Title.Contains("B");
-
-        var result = await service.GetPromptsByConditionAsync(cond);
-
-        Assert.Equal(2, result.Count());
-    }
-
-    [Fact]
-    public async Task GetFavoritePromptsAsync_ShouldReturnMappedFavorites()
-    {
-        var mockPromptRepo = new Mock<IPromptRepository>();
-
-        var favs = new List<FavoritePrompts>
-        {
-            new FavoritePrompts { ID = Guid.NewGuid(), UserID = Guid.NewGuid(), Prompt = MakePrompt(title:"Fav1") }
-        };
-
-        mockPromptRepo.Setup(r => r.GetFavoritePromptsAsync(It.IsAny<Guid>())).ReturnsAsync(favs);
-
-        var service = new PromptGetterService(mockPromptRepo.Object, _mapper);
-
-        var result = await service.GetFavoritePromptsAsync(Guid.NewGuid());
-
-        Assert.Single(result);
-    }
-
-    [Fact]
-    public async Task GetFavoritePromptsAsync_ShouldReturnEmpty_WhenNone()
-    {
-        var mockPromptRepo = new Mock<IPromptRepository>();
-
-        mockPromptRepo.Setup(r => r.GetFavoritePromptsAsync(It.IsAny<Guid>())).ReturnsAsync(new List<FavoritePrompts>());
-
-        var service = new PromptGetterService(mockPromptRepo.Object, _mapper);
-
-        var result = await service.GetFavoritePromptsAsync(Guid.NewGuid());
-
-        Assert.Empty(result);
-    }
-
-    [Fact]
-    public async Task IsPromptFavoriteAsync_ShouldThrow_WhenUserIdEmpty()
-    {
-        var mockPromptRepo = new Mock<IPromptRepository>();
-        var service = new PromptGetterService(mockPromptRepo.Object, _mapper);
-
-        await Assert.ThrowsAsync<ArgumentException>(() => service.IsPromptFavoriteAsync(Guid.Empty, Guid.NewGuid()));
-    }
-
-    [Fact]
-    public async Task IsPromptFavoriteAsync_ShouldThrow_WhenPromptIdEmpty()
-    {
-        var mockPromptRepo = new Mock<IPromptRepository>();
-        var service = new PromptGetterService(mockPromptRepo.Object, _mapper);
-
-        await Assert.ThrowsAsync<ArgumentException>(() => service.IsPromptFavoriteAsync(Guid.NewGuid(), Guid.Empty));
-    }
-
-    [Fact]
-    public async Task IsPromptFavoriteAsync_ShouldReturnTrue_WhenRepoSaysTrue()
-    {
-        var mockPromptRepo = new Mock<IPromptRepository>();
-        mockPromptRepo.Setup(r => r.IsFavoriteAsync(It.IsAny<Guid>(), It.IsAny<Guid>())).ReturnsAsync(true);
-
-        var service = new PromptGetterService(mockPromptRepo.Object, _mapper);
-
-        var result = await service.IsPromptFavoriteAsync(Guid.NewGuid(), Guid.NewGuid());
-
-        Assert.True(result);
-    }
-
-    [Fact]
     public async Task SearchPromptsAsync_ShouldThrow_WhenKeywordNullOrWhitespace()
     {
         var mockPromptRepo = new Mock<IPromptRepository>();
@@ -371,26 +251,31 @@ public class PromptServiceTest
     public async Task SearchPromptsAsync_ShouldReturnEmpty_WhenRepoReturnsEmpty()
     {
         var mockPromptRepo = new Mock<IPromptRepository>();
-        mockPromptRepo.Setup(r => r.SearchPromptAsync("x")).ReturnsAsync(new List<Prompt>());
+        mockPromptRepo
+            .Setup(r => r.SearchPromptPagedAsync("x", It.IsAny<int>(), It.IsAny<int>()))
+            .ReturnsAsync((0, (IReadOnlyList<Prompt>)new List<Prompt>()));
 
         var service = new PromptGetterService(mockPromptRepo.Object, _mapper);
 
         var result = await service.SearchPromptsAsync("x");
 
-        Assert.Empty(result);
+        Assert.Empty(result.Items);
     }
 
     [Fact]
     public async Task SearchPromptsAsync_ShouldReturnList_WhenRepoReturns()
     {
         var mockPromptRepo = new Mock<IPromptRepository>();
-        mockPromptRepo.Setup(r => r.SearchPromptAsync("test")).ReturnsAsync(new List<Prompt> { MakePrompt(title: "test") });
+        var found = new List<Prompt> { MakePrompt(title: "test") };
+        mockPromptRepo
+            .Setup(r => r.SearchPromptPagedAsync("test", It.IsAny<int>(), It.IsAny<int>()))
+            .ReturnsAsync((found.Count, (IReadOnlyList<Prompt>)found));
 
         var service = new PromptGetterService(mockPromptRepo.Object, _mapper);
 
         var result = await service.SearchPromptsAsync("test");
 
-        Assert.Single(result);
+        Assert.Single(result.Items);
     }
 
     #endregion
@@ -405,148 +290,74 @@ public class PromptServiceTest
     public async Task UpdatePromptAsync_ShouldThrow_WhenPromptDoesNotExist()
     {
         var mockPromptRepo = new Mock<IPromptRepository>();
-        mockPromptRepo.Setup(r => r.DoesPromptExistAsync(It.IsAny<Guid>())).ReturnsAsync(false);
+        mockPromptRepo.Setup(r => r.GetPromptByConditionAsync(It.IsAny<Expression<Func<Prompt, bool>>>()))
+                      .ReturnsAsync((Prompt)null);
 
         var service = new PromptUpdaterService(mockPromptRepo.Object, _mapper);
 
         var req = new PromptUpdateRequest(Guid.NewGuid(), "t", "d", "c");
 
-        await Assert.ThrowsAsync<PromptNotFoundExceptions>(() => service.UpdatePromptAsync(req));
+        await Assert.ThrowsAsync<PromptNotFoundExceptions>(() =>
+            service.UpdatePromptAsync(req, Guid.NewGuid(), isAdmin: false));
     }
 
     [Fact]
-    public async Task UpdatePromptAsync_ShouldReturnMappedResult_WhenSuccess()
+    public async Task UpdatePromptAsync_ShouldThrowOwnershipException_WhenNotOwnerAndNotAdmin()
     {
         var mockPromptRepo = new Mock<IPromptRepository>();
-        mockPromptRepo.Setup(r => r.DoesPromptExistAsync(It.IsAny<Guid>())).ReturnsAsync(true);
 
-        var updated = MakePrompt();
-        mockPromptRepo.Setup(r => r.UpdatePromptAsync(It.IsAny<Prompt>())).ReturnsAsync(updated);
+        var existing = MakePrompt(ownerId: Guid.NewGuid());
+        mockPromptRepo.Setup(r => r.GetPromptByConditionAsync(It.IsAny<Expression<Func<Prompt, bool>>>()))
+                      .ReturnsAsync(existing);
 
         var service = new PromptUpdaterService(mockPromptRepo.Object, _mapper);
 
-        var req = new PromptUpdateRequest(updated.ID, "new", "d", "c");
+        var req = new PromptUpdateRequest(existing.ID, "new", "d", "c");
 
-        var result = await service.UpdatePromptAsync(req);
+        await Assert.ThrowsAsync<PromptOwnershipException>(() =>
+            service.UpdatePromptAsync(req, Guid.NewGuid(), isAdmin: false));
+    }
+
+    [Fact]
+    public async Task UpdatePromptAsync_ShouldSucceed_WhenOwner()
+    {
+        var mockPromptRepo = new Mock<IPromptRepository>();
+
+        var ownerId = Guid.NewGuid();
+        var existing = MakePrompt(ownerId: ownerId);
+
+        mockPromptRepo.Setup(r => r.GetPromptByConditionAsync(It.IsAny<Expression<Func<Prompt, bool>>>()))
+                      .ReturnsAsync(existing);
+        mockPromptRepo.Setup(r => r.UpdatePromptAsync(It.IsAny<Prompt>())).ReturnsAsync(existing);
+
+        var service = new PromptUpdaterService(mockPromptRepo.Object, _mapper);
+
+        var req = new PromptUpdateRequest(existing.ID, "new", "d", "c");
+
+        var result = await service.UpdatePromptAsync(req, ownerId, isAdmin: false);
 
         Assert.NotNull(result);
-        Assert.Equal(updated.ID, result.Id);
+        Assert.Equal(existing.ID, result.Id);
     }
 
     [Fact]
-    public async Task UpdatePromptAsync_ShouldReturnNull_WhenRepositoryReturnsNull()
+    public async Task UpdatePromptAsync_ShouldSucceed_WhenAdminEvenIfNotOwner()
     {
         var mockPromptRepo = new Mock<IPromptRepository>();
-        mockPromptRepo.Setup(r => r.DoesPromptExistAsync(It.IsAny<Guid>())).ReturnsAsync(true);
-        mockPromptRepo.Setup(r => r.UpdatePromptAsync(It.IsAny<Prompt>())).ReturnsAsync((Prompt)null);
+
+        var existing = MakePrompt(ownerId: Guid.NewGuid());
+
+        mockPromptRepo.Setup(r => r.GetPromptByConditionAsync(It.IsAny<Expression<Func<Prompt, bool>>>()))
+                      .ReturnsAsync(existing);
+        mockPromptRepo.Setup(r => r.UpdatePromptAsync(It.IsAny<Prompt>())).ReturnsAsync(existing);
 
         var service = new PromptUpdaterService(mockPromptRepo.Object, _mapper);
 
-        var req = new PromptUpdateRequest(Guid.NewGuid(), "new", "d", "c");
+        var req = new PromptUpdateRequest(existing.ID, "new", "d", "c");
 
-        var result = await service.UpdatePromptAsync(req);
+        var result = await service.UpdatePromptAsync(req, Guid.NewGuid(), isAdmin: true);
 
-        Assert.Null(result);
-    }
-
-    [Fact]
-    public async Task UpdatePromptAsync_ShouldThrow_WhenRepositoryThrows()
-    {
-        var mockPromptRepo = new Mock<IPromptRepository>();
-        mockPromptRepo.Setup(r => r.DoesPromptExistAsync(It.IsAny<Guid>())).ReturnsAsync(true);
-        mockPromptRepo.Setup(r => r.UpdatePromptAsync(It.IsAny<Prompt>())).ThrowsAsync(new InvalidOperationException("db"));
-
-        var service = new PromptUpdaterService(mockPromptRepo.Object, _mapper);
-
-        var req = new PromptUpdateRequest(Guid.NewGuid(), "new", "d", "c");
-
-        await Assert.ThrowsAsync<InvalidOperationException>(() => service.UpdatePromptAsync(req));
-    }
-
-    #endregion
-
-    // ------------------------------------------------------------
-    // NEW TESTS – Ensure Images are mapped as ImageResponse everywhere
-    // ------------------------------------------------------------
-
-    #region MappedImagesTest
-
-    [Fact]
-    public async Task CreatePromptAsync_ShouldReturnImages_AsImageResponse()
-    {
-        var mockPromptRepo = new Mock<IPromptRepository>();
-        var mockPromptImageRepo = new Mock<IPromptImageRepository>();
-
-        var prompt = MakePrompt();
-        var images = new List<ImageResponse>
-    {
-        new ImageResponse(Guid.NewGuid(), "i1", "/p1", "g1"),
-        new ImageResponse(Guid.NewGuid(), "i2", "/p2", "g2")
-    };
-
-        var resp = new PromptResponse(prompt.ID, prompt.Title, prompt.Description, prompt.Content, images);
-
-        mockPromptImageRepo
-            .Setup(r => r.CreatePromptWithImagesAsync(It.IsAny<PromptAddRequest>()))
-            .ReturnsAsync(resp);
-
-        var service = new PromptAdderService(mockPromptImageRepo.Object, mockPromptRepo.Object, _mapper);
-
-        var req = new PromptAddRequest("title", "desc", "content",
-            new[] { new ImageAddRequest("i1", "/p1", "g1"), new ImageAddRequest("i2", "/p2", "g2") });
-
-        var result = await service.CreatePromptAsync(req);
-
-        Assert.NotNull(result.Images);
-        Assert.All(result.Images, img => Assert.IsType<ImageResponse>(img));
-    }
-
-    [Fact]
-    public async Task GetAllPromptsAsync_ShouldReturnImages_AsImageResponse()
-    {
-        var mockPromptRepo = new Mock<IPromptRepository>();
-
-        var prompt = MakePrompt();
-        prompt.PromptImages = new List<PromptImage>
-    {
-        new PromptImage { Image = MakeImage(title: "img1") },
-        new PromptImage { Image = MakeImage(title: "img2") }
-    };
-
-        mockPromptRepo.Setup(r => r.GetPromptsAsync())
-                      .ReturnsAsync(new List<Prompt> { prompt });
-
-        var service = new PromptGetterService(mockPromptRepo.Object, _mapper);
-
-        var result = (await service.GetAllPromptsAsync()).ToList();
-
-        Assert.NotNull(result[0].Images);
-        Assert.All(result[0].Images, img => Assert.IsType<ImageResponse>(img));
-    }
-
-    [Fact]
-    public async Task UpdatePromptAsync_ShouldReturnImages_AsImageResponse()
-    {
-        var mockPromptRepo = new Mock<IPromptRepository>();
-        mockPromptRepo.Setup(r => r.DoesPromptExistAsync(It.IsAny<Guid>())).ReturnsAsync(true);
-
-        var prompt = MakePrompt();
-        prompt.PromptImages = new List<PromptImage>
-    {
-        new PromptImage { Image = MakeImage(title: "old-img") }
-    };
-
-        mockPromptRepo.Setup(r => r.UpdatePromptAsync(It.IsAny<Prompt>()))
-                      .ReturnsAsync(prompt);
-
-        var service = new PromptUpdaterService(mockPromptRepo.Object, _mapper);
-
-        var req = new PromptUpdateRequest(prompt.ID, "new", "d", "c");
-
-        var result = await service.UpdatePromptAsync(req);
-
-        Assert.NotNull(result.Images);
-        Assert.All(result.Images, img => Assert.IsType<ImageResponse>(img));
+        Assert.NotNull(result);
     }
 
     #endregion
@@ -567,44 +378,64 @@ public class PromptServiceTest
         var service = new PromptDeleterService(mockPromptRepo.Object);
 
         await Assert.ThrowsAsync<PromptNotFoundExceptions>(() =>
-            service.DeletePromptAsync(Guid.NewGuid()));
+            service.DeletePromptAsync(Guid.NewGuid(), Guid.NewGuid(), isAdmin: false));
     }
 
     [Fact]
-    public async Task DeletePromptAsync_ShouldReturnTrue_WhenSuccessful()
+    public async Task DeletePromptAsync_ShouldThrowOwnershipException_WhenNotOwnerAndNotAdmin()
     {
         var mockPromptRepo = new Mock<IPromptRepository>();
 
         mockPromptRepo.Setup(r => r.DoesPromptExistAsync(It.IsAny<Guid>()))
                       .ReturnsAsync(true);
+        mockPromptRepo.Setup(r => r.GetPromptOwnerIdAsync(It.IsAny<Guid>()))
+                      .ReturnsAsync(Guid.NewGuid());
 
+        var service = new PromptDeleterService(mockPromptRepo.Object);
+
+        await Assert.ThrowsAsync<PromptOwnershipException>(() =>
+            service.DeletePromptAsync(Guid.NewGuid(), Guid.NewGuid(), isAdmin: false));
+    }
+
+    [Fact]
+    public async Task DeletePromptAsync_ShouldReturnTrue_WhenOwnerDeletes()
+    {
+        var mockPromptRepo = new Mock<IPromptRepository>();
+
+        var ownerId = Guid.NewGuid();
+
+        mockPromptRepo.Setup(r => r.DoesPromptExistAsync(It.IsAny<Guid>()))
+                      .ReturnsAsync(true);
+        mockPromptRepo.Setup(r => r.GetPromptOwnerIdAsync(It.IsAny<Guid>()))
+                      .ReturnsAsync(ownerId);
         mockPromptRepo.Setup(r => r.DeletePromptAsync(It.IsAny<Guid>()))
                       .ReturnsAsync(true);
 
         var service = new PromptDeleterService(mockPromptRepo.Object);
 
-        var result = await service.DeletePromptAsync(Guid.NewGuid());
+        var result = await service.DeletePromptAsync(Guid.NewGuid(), ownerId, isAdmin: false);
 
         Assert.True(result);
         mockPromptRepo.Verify(r => r.DeletePromptAsync(It.IsAny<Guid>()), Times.Once);
     }
 
     [Fact]
-    public async Task DeletePromptAsync_ShouldReturnFalse_WhenRepositoryReturnsFalse()
+    public async Task DeletePromptAsync_ShouldReturnTrue_WhenAdminDeletesOthersPrompt()
     {
         var mockPromptRepo = new Mock<IPromptRepository>();
 
         mockPromptRepo.Setup(r => r.DoesPromptExistAsync(It.IsAny<Guid>()))
                       .ReturnsAsync(true);
-
+        mockPromptRepo.Setup(r => r.GetPromptOwnerIdAsync(It.IsAny<Guid>()))
+                      .ReturnsAsync(Guid.NewGuid());
         mockPromptRepo.Setup(r => r.DeletePromptAsync(It.IsAny<Guid>()))
-                      .ReturnsAsync(false);
+                      .ReturnsAsync(true);
 
         var service = new PromptDeleterService(mockPromptRepo.Object);
 
-        var result = await service.DeletePromptAsync(Guid.NewGuid());
+        var result = await service.DeletePromptAsync(Guid.NewGuid(), Guid.NewGuid(), isAdmin: true);
 
-        Assert.False(result);
+        Assert.True(result);
     }
 
     [Fact]
@@ -612,85 +443,20 @@ public class PromptServiceTest
     {
         var mockPromptRepo = new Mock<IPromptRepository>();
 
+        var ownerId = Guid.NewGuid();
+
         mockPromptRepo.Setup(r => r.DoesPromptExistAsync(It.IsAny<Guid>()))
                       .ReturnsAsync(true);
-
+        mockPromptRepo.Setup(r => r.GetPromptOwnerIdAsync(It.IsAny<Guid>()))
+                      .ReturnsAsync(ownerId);
         mockPromptRepo.Setup(r => r.DeletePromptAsync(It.IsAny<Guid>()))
                       .ThrowsAsync(new InvalidOperationException("db"));
 
         var service = new PromptDeleterService(mockPromptRepo.Object);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            service.DeletePromptAsync(Guid.NewGuid()));
+            service.DeletePromptAsync(Guid.NewGuid(), ownerId, isAdmin: false));
     }
 
-    [Fact]
-    public async Task RemoveFromFavoritesAsync_ShouldThrow_WhenPromptNotFavorite()
-    {
-        var mockPromptRepo = new Mock<IPromptRepository>();
-
-        mockPromptRepo.Setup(r => r.IsFavoriteAsync(It.IsAny<Guid>(), It.IsAny<Guid>()))
-                      .ReturnsAsync(false);
-
-        var service = new PromptDeleterService(mockPromptRepo.Object);
-
-        await Assert.ThrowsAsync<PromptNotFoundExceptions>(() =>
-            service.RemoveFromFavoritesAsync(Guid.NewGuid(), Guid.NewGuid()));
-    }
-
-    [Fact]
-    public async Task RemoveFromFavoritesAsync_ShouldReturnTrue_WhenSuccessful()
-    {
-        var mockPromptRepo = new Mock<IPromptRepository>();
-
-        mockPromptRepo.Setup(r => r.IsFavoriteAsync(It.IsAny<Guid>(), It.IsAny<Guid>()))
-                      .ReturnsAsync(true);
-
-        mockPromptRepo.Setup(r => r.RemoveFromFavoritesAsync(It.IsAny<Guid>(), It.IsAny<Guid>()))
-                      .ReturnsAsync(true);
-
-        var service = new PromptDeleterService(mockPromptRepo.Object);
-
-        var result = await service.RemoveFromFavoritesAsync(Guid.NewGuid(), Guid.NewGuid());
-
-        Assert.True(result);
-        mockPromptRepo.Verify(r => r.RemoveFromFavoritesAsync(It.IsAny<Guid>(), It.IsAny<Guid>()), Times.Once);
-    }
-
-    [Fact]
-    public async Task RemoveFromFavoritesAsync_ShouldReturnFalse_WhenRepositoryReturnsFalse()
-    {
-        var mockPromptRepo = new Mock<IPromptRepository>();
-
-        mockPromptRepo.Setup(r => r.IsFavoriteAsync(It.IsAny<Guid>(), It.IsAny<Guid>()))
-                      .ReturnsAsync(true);
-
-        mockPromptRepo.Setup(r => r.RemoveFromFavoritesAsync(It.IsAny<Guid>(), It.IsAny<Guid>()))
-                      .ReturnsAsync(false);
-
-        var service = new PromptDeleterService(mockPromptRepo.Object);
-
-        var result = await service.RemoveFromFavoritesAsync(Guid.NewGuid(), Guid.NewGuid());
-
-        Assert.False(result);
-    }
-
-    [Fact]
-    public async Task RemoveFromFavoritesAsync_ShouldThrow_WhenRepositoryThrows()
-    {
-        var mockPromptRepo = new Mock<IPromptRepository>();
-
-        mockPromptRepo.Setup(r => r.IsFavoriteAsync(It.IsAny<Guid>(), It.IsAny<Guid>()))
-                      .ReturnsAsync(true);
-
-        mockPromptRepo.Setup(r => r.RemoveFromFavoritesAsync(It.IsAny<Guid>(), It.IsAny<Guid>()))
-                      .ThrowsAsync(new InvalidOperationException("db"));
-
-        var service = new PromptDeleterService(mockPromptRepo.Object);
-
-        await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            service.RemoveFromFavoritesAsync(Guid.NewGuid(), Guid.NewGuid()));
-    }
     #endregion
-
 }

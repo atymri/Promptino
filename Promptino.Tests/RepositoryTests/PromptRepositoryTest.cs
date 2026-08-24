@@ -1,6 +1,7 @@
-﻿using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Promptino.Core.Domain.Entities;
+using Promptino.Core.DTOs;
 using Promptino.Infrastructure.DatabaseContext;
 using Promptino.Infrastructure.Repositories;
 using System.Linq.Expressions;
@@ -78,12 +79,13 @@ public class PromptRepositoryTests : IDisposable
                 }
             };
 
-        // Add test prompts
+        // Add test prompts (all owned by the test user)
         var prompts = new List<Prompt>
             {
                 new Prompt
                 {
                     ID = Guid.Parse("11111111-1111-1111-1111-111111111111"),
+                    UserID = _testUser.Id,
                     Title = "Prompt 1",
                     Description = "Description for prompt 1",
                     Content = "Content for prompt 1",
@@ -93,6 +95,7 @@ public class PromptRepositoryTests : IDisposable
                 new Prompt
                 {
                     ID = Guid.Parse("22222222-2222-2222-2222-222222222222"),
+                    UserID = _testUser.Id,
                     Title = "Prompt 2",
                     Description = "Description for prompt 2",
                     Content = "Content for prompt 2",
@@ -102,6 +105,7 @@ public class PromptRepositoryTests : IDisposable
                 new Prompt
                 {
                     ID = Guid.Parse("33333333-3333-3333-3333-333333333333"),
+                    UserID = _testUser.Id,
                     Title = "Another Prompt",
                     Description = "Another description",
                     Content = "Another content",
@@ -139,10 +143,10 @@ public class PromptRepositoryTests : IDisposable
                 }
             };
 
-        // Add favorite prompts
-        var favoritePrompts = new List<FavoritePrompts>
+        // Add saved prompts (replaces favorites)
+        var savedPrompts = new List<SavedPrompt>
             {
-                new FavoritePrompts
+                new SavedPrompt
                 {
                     ID = Guid.NewGuid(),
                     UserID = _testUser.Id,
@@ -150,7 +154,7 @@ public class PromptRepositoryTests : IDisposable
                     CreatedAt = DateTime.UtcNow,
                     LastUpdatedAt = DateTime.UtcNow
                 },
-                new FavoritePrompts
+                new SavedPrompt
                 {
                     ID = Guid.NewGuid(),
                     UserID = _testUser.Id,
@@ -163,7 +167,7 @@ public class PromptRepositoryTests : IDisposable
         _context.Images.AddRange(images);
         _context.Prompts.AddRange(prompts);
         _context.PromptImages.AddRange(promptImages);
-        _context.FavoritePrompts.AddRange(favoritePrompts);
+        _context.SavedPrompts.AddRange(savedPrompts);
         _context.SaveChanges();
     }
 
@@ -174,6 +178,7 @@ public class PromptRepositoryTests : IDisposable
         var newPrompt = new Prompt
         {
             ID = Guid.NewGuid(),
+            UserID = _testUser.Id,
             Title = "New Prompt",
             Description = "New Description",
             Content = "New Content",
@@ -206,46 +211,76 @@ public class PromptRepositoryTests : IDisposable
     }
 
     [Fact]
-    public async Task AddToFavoritesAsync_ValidIds_ReturnsTrue()
+    public async Task GetPromptsByOwnerAsync_UserWithPrompts_ReturnsOnlyOwned()
     {
-        // Arrange
-        var userId = _testUser.Id;
-        var promptId = Guid.Parse("33333333-3333-3333-3333-333333333333"); // Not favorited yet
-
-        // Verify not favorite yet
-        var isFavoriteBefore = await _repository.IsFavoriteAsync(userId, promptId);
-        Assert.False(isFavoriteBefore);
         // Act
-        var result = await _repository.AddToFavoritesAsync(new FavoritePrompts() { UserID = userId, PromptID = promptId});
+        var result = await _repository.GetPromptsByOwnerAsync(_testUser.Id);
 
-        // Assert
-        Assert.True(result);
-
-        // Verify it was added to favorites
-        var isFavoriteAfter = await _repository.IsFavoriteAsync(userId, promptId);
-        Assert.True(isFavoriteAfter);
-
-        var favoriteEntry = await _context.FavoritePrompts
-            .FirstOrDefaultAsync(fp => fp.UserID == userId && fp.PromptID == promptId);
-        Assert.NotNull(favoriteEntry);
+        // Assert - all 3 seeded prompts are owned by the test user
+        Assert.Equal(3, result.Count());
+        Assert.All(result, p => Assert.Equal(_testUser.Id, p.UserID));
     }
 
     [Fact]
-    public async Task AddToFavoritesAsync_DuplicateFavorite_ReturnsTrue()
+    public async Task GetPromptsByOwnerAsync_UserWithoutPrompts_ReturnsEmpty()
     {
-        // Arrange - Use already favorited prompt
-        var userId = _testUser.Id;
+        // Act
+        var result = await _repository.GetPromptsByOwnerAsync(Guid.NewGuid());
+
+        // Assert
+        Assert.Empty(result);
+    }
+
+    [Fact]
+    public async Task GetPromptOwnerIdAsync_ExistingPrompt_ReturnsOwnerId()
+    {
+        // Arrange
         var promptId = Guid.Parse("11111111-1111-1111-1111-111111111111");
 
-        // Verify it's already favorite
-        var isFavoriteBefore = await _repository.IsFavoriteAsync(userId, promptId);
-        Assert.True(isFavoriteBefore);
+        // Act
+        var ownerId = await _repository.GetPromptOwnerIdAsync(promptId);
+
+        // Assert
+        Assert.Equal(_testUser.Id, ownerId);
+    }
+
+    [Fact]
+    public async Task GetPromptOwnerIdAsync_NonExistentPrompt_ReturnsNull()
+    {
+        // Act
+        var ownerId = await _repository.GetPromptOwnerIdAsync(Guid.NewGuid());
+
+        // Assert
+        Assert.Null(ownerId);
+    }
+
+    [Fact]
+    public async Task DeletePromptAsync_RemovesCommentsReactionsAndSaves()
+    {
+        // Arrange - attach children to prompt 1
+        var promptId = Guid.Parse("11111111-1111-1111-1111-111111111111");
+        var otherUser = new ApplicationUser { Id = Guid.NewGuid(), UserName = "other@example.com", Email = "other@example.com" };
+        _context.Users.Add(otherUser);
+
+        _context.Comments.Add(new Comment { ID = Guid.NewGuid(), UserID = otherUser.Id, PromptID = promptId, Content = "nice" });
+        _context.PromptReactions.Add(new PromptReaction { ID = Guid.NewGuid(), UserID = otherUser.Id, PromptID = promptId, Type = ReactionType.Like });
+        await _context.SaveChangesAsync();
+
+        var commentsBefore = await _context.Comments.CountAsync(c => c.PromptID == promptId);
+        var reactionsBefore = await _context.PromptReactions.CountAsync(r => r.PromptID == promptId);
+        Assert.Equal(1, commentsBefore);
+        Assert.Equal(1, reactionsBefore);
 
         // Act
-        var result = await _repository.AddToFavoritesAsync(new FavoritePrompts() { UserID = userId, PromptID = promptId });
+        var result = await _repository.DeletePromptAsync(promptId);
 
-        // Assert - Should still return true (EF Core handles duplicates)
+        // Assert
         Assert.True(result);
+        Assert.Null(await _context.Prompts.FindAsync(promptId));
+
+        // InMemory does not enforce DB cascades — the repository must clean up explicitly
+        Assert.Empty(await _context.Comments.Where(c => c.PromptID == promptId).ToListAsync());
+        Assert.Empty(await _context.PromptReactions.Where(r => r.PromptID == promptId).ToListAsync());
     }
 
     [Fact]
@@ -306,67 +341,6 @@ public class PromptRepositoryTests : IDisposable
 
         // Assert
         Assert.False(result);
-    }
-
-    [Fact]
-    public async Task GetFavoritePromptsAsync_UserWithFavorites_ReturnsPromptsWithImages()
-    {
-        // Arrange
-        var userId = _testUser.Id;
-
-        // Act
-        var result = await _repository.GetFavoritePromptsAsync(userId);
-
-        // Assert
-        Assert.NotNull(result);
-        Assert.Equal(2, result.Count()); // User has 2 favorited prompts
-
-        // Verify prompts are loaded with images
-        Assert.All(result, prompt => Assert.NotNull(prompt.Prompt.PromptImages));
-
-        // Verify images are loaded
-        Assert.All(result.SelectMany(p => p.Prompt.PromptImages),
-            pi => Assert.NotNull(pi.Image));
-
-        // Verify correct prompts are returned
-        var promptIds = result.Select(p => p.ID).ToList();
-        Assert.Contains(Guid.Parse("11111111-1111-1111-1111-111111111111"), promptIds);
-        Assert.Contains(Guid.Parse("22222222-2222-2222-2222-222222222222"), promptIds);
-    }
-
-    [Fact]
-    public async Task GetFavoritePromptsAsync_UserWithNoFavorites_ReturnsEmptyList()
-    {
-        // Arrange
-        var newUser = new ApplicationUser
-        {
-            Id = Guid.NewGuid(),
-            UserName = "newuser@example.com",
-            Email = "newuser@example.com",
-        };
-        _context.Users.Add(newUser);
-        await _context.SaveChangesAsync();
-
-        // Act
-        var result = await _repository.GetFavoritePromptsAsync(newUser.Id);
-
-        // Assert
-        Assert.NotNull(result);
-        Assert.Empty(result);
-    }
-
-    [Fact]
-    public async Task GetFavoritePromptsAsync_NonExistentUser_ReturnsEmptyList()
-    {
-        // Arrange
-        var nonExistentUserId = Guid.NewGuid();
-
-        // Act
-        var result = await _repository.GetFavoritePromptsAsync(nonExistentUserId);
-
-        // Assert
-        Assert.NotNull(result);
-        Assert.Empty(result);
     }
 
     [Fact]
@@ -431,17 +405,16 @@ public class PromptRepositoryTests : IDisposable
     public async Task GetPromptsAsync_ReturnsAllPromptsWithImages()
     {
         // Act
-        var result = await _repository.GetPromptsAsync();
+        var result = await _repository.GetPromptsPagedAsync(1, PaginationDefaults.MaxPageSize);
 
         // Assert
-        Assert.NotNull(result);
-        Assert.Equal(3, result.Count()); // Should have 3 seeded prompts
+        Assert.Equal(3, result.TotalCount); // Should have 3 seeded prompts
 
         // Verify all prompts have PromptImages loaded
-        Assert.All(result, prompt => Assert.NotNull(prompt.PromptImages));
+        Assert.All(result.Items, prompt => Assert.NotNull(prompt.PromptImages));
 
         // Verify Images are loaded in PromptImages
-        Assert.All(result.SelectMany(p => p.PromptImages),
+        Assert.All(result.Items.SelectMany(p => p.PromptImages),
             pi => Assert.NotNull(pi.Image));
     }
 
@@ -493,97 +466,18 @@ public class PromptRepositoryTests : IDisposable
     }
 
     [Fact]
-    public async Task IsFavoriteAsync_UserHasPromptFavorited_ReturnsTrue()
-    {
-        // Arrange
-        var userId = _testUser.Id;
-        var promptId = Guid.Parse("11111111-1111-1111-1111-111111111111");
-
-        // Act
-        var result = await _repository.IsFavoriteAsync(userId, promptId);
-
-        // Assert
-        Assert.True(result);
-    }
-
-    [Fact]
-    public async Task IsFavoriteAsync_UserDoesNotHavePromptFavorited_ReturnsFalse()
-    {
-        // Arrange
-        var userId = _testUser.Id;
-        var promptId = Guid.Parse("33333333-3333-3333-3333-333333333333"); // Not favorited
-
-        // Act
-        var result = await _repository.IsFavoriteAsync(userId, promptId);
-
-        // Assert
-        Assert.False(result);
-    }
-
-    [Fact]
-    public async Task IsFavoriteAsync_NonExistentUser_ReturnsFalse()
-    {
-        // Arrange
-        var nonExistentUserId = Guid.NewGuid();
-        var promptId = Guid.Parse("11111111-1111-1111-1111-111111111111");
-
-        // Act
-        var result = await _repository.IsFavoriteAsync(nonExistentUserId, promptId);
-
-        // Assert
-        Assert.False(result);
-    }
-
-    [Fact]
-    public async Task RemoveFromFavoritesAsync_ExistingFavorite_ReturnsTrue()
-    {
-        // Arrange
-        var userId = _testUser.Id;
-        var promptId = Guid.Parse("11111111-1111-1111-1111-111111111111");
-
-        // Verify favorite exists
-        var isFavoriteBefore = await _repository.IsFavoriteAsync(userId, promptId);
-        Assert.True(isFavoriteBefore);
-
-        // Act
-        var result = await _repository.RemoveFromFavoritesAsync(userId, promptId);
-
-        // Assert
-        Assert.True(result);
-
-        // Verify favorite was removed
-        var isFavoriteAfter = await _repository.IsFavoriteAsync(userId, promptId);
-        Assert.False(isFavoriteAfter);
-    }
-
-    [Fact]
-    public async Task RemoveFromFavoritesAsync_NonExistentFavorite_ReturnsFalse()
-    {
-        // Arrange
-        var userId = _testUser.Id;
-        var promptId = Guid.Parse("33333333-3333-3333-3333-333333333333"); // Not favorited
-
-        // Act
-        var result = await _repository.RemoveFromFavoritesAsync(userId, promptId);
-
-        // Assert
-        Assert.False(result);
-    }
-
-    [Fact]
     public async Task SearchPromptAsync_KeywordInTitle_ReturnsMatchingPrompts()
     {
         // Arrange
         var keyword = "Prompt";
 
         // Act
-        var result = await _repository.SearchPromptAsync(keyword);
+        var result = await _repository.SearchPromptPagedAsync(keyword, 1, PaginationDefaults.MaxPageSize);
 
         // Assert
-        Assert.NotNull(result);
-        Assert.Equal(3, result.Count()); // All prompts have "Prompt" in title
-        Assert.All(result, prompt => Assert.Contains(keyword, prompt.Title));
-        Assert.All(result, prompt => Assert.NotNull(prompt.PromptImages));
+        Assert.Equal(3, result.TotalCount); // All prompts have "Prompt" in title
+        Assert.All(result.Items, prompt => Assert.Contains(keyword, prompt.Title));
+        Assert.All(result.Items, prompt => Assert.NotNull(prompt.PromptImages));
     }
 
     [Fact]
@@ -593,12 +487,11 @@ public class PromptRepositoryTests : IDisposable
         var keyword = "description";
 
         // Act
-        var result = await _repository.SearchPromptAsync(keyword);
+        var result = await _repository.SearchPromptPagedAsync(keyword, 1, PaginationDefaults.MaxPageSize);
 
         // Assert
-        Assert.NotNull(result);
-        Assert.Equal(3, result.Count());
-        Assert.All(result, prompt =>
+        Assert.Equal(3, result.TotalCount);
+        Assert.All(result.Items, prompt =>
             Assert.Contains(keyword, prompt.Description, StringComparison.OrdinalIgnoreCase));
     }
 
@@ -609,12 +502,11 @@ public class PromptRepositoryTests : IDisposable
         var keyword = "Another";
 
         // Act
-        var result = await _repository.SearchPromptAsync(keyword);
+        var result = await _repository.SearchPromptPagedAsync(keyword, 1, PaginationDefaults.MaxPageSize);
 
         // Assert
-        Assert.NotNull(result);
-        Assert.Single(result);
-        Assert.Contains(keyword, result.First().Title);
+        Assert.Single(result.Items);
+        Assert.Contains(keyword, result.Items.First().Title);
     }
 
     [Fact]
@@ -624,11 +516,10 @@ public class PromptRepositoryTests : IDisposable
         var keyword = "NonexistentKeyword";
 
         // Act
-        var result = await _repository.SearchPromptAsync(keyword);
+        var result = await _repository.SearchPromptPagedAsync(keyword, 1, PaginationDefaults.MaxPageSize);
 
         // Assert
-        Assert.NotNull(result);
-        Assert.Empty(result);
+        Assert.Empty(result.Items);
     }
 
     [Fact]
@@ -638,22 +529,23 @@ public class PromptRepositoryTests : IDisposable
         var keyword = "";
 
         // Act
-        var result = await _repository.SearchPromptAsync(keyword);
+        var result = await _repository.SearchPromptPagedAsync(keyword, 1, PaginationDefaults.MaxPageSize);
 
         // Assert
-        Assert.NotNull(result);
-        Assert.Equal(3, result.Count()); // Should return all prompts
+        Assert.Equal(3, result.TotalCount); // Should return all prompts
     }
 
     [Fact]
-    public async Task SearchPromptAsync_NullKeyword_ReturnsNull()
+    public async Task SearchPromptAsync_NullKeyword_ReturnsEmpty()
     {
         // Arrange
         string keyword = null;
 
         // Act & Assert
-        var res = await _repository.SearchPromptAsync(keyword);
-        Assert.Null(res);
+        var res = await _repository.SearchPromptPagedAsync(keyword, 1, PaginationDefaults.MaxPageSize);
+        Assert.NotNull(res);
+        Assert.Empty(res.Items);
+        Assert.Equal(0, res.TotalCount);
     }
 
     [Fact]
@@ -767,10 +659,11 @@ public class PromptRepositoryTests : IDisposable
     [Fact]
     public async Task IntegrationTest_CompletePromptLifecycle()
     {
-        // 1. Add new prompt
+        // 1. Add new prompt owned by test user
         var newPrompt = new Prompt
         {
             ID = Guid.NewGuid(),
+            UserID = _testUser.Id,
             Title = "Integration Test Prompt",
             Description = "Integration Description",
             Content = "Integration Content",
@@ -780,31 +673,25 @@ public class PromptRepositoryTests : IDisposable
         var addedPrompt = await _repository.AddPromptAsync(newPrompt);
         Assert.NotNull(addedPrompt);
 
-        // 2. Verify it exists
+        // 2. Verify it exists and owner is correct
         var exists = await _repository.DoesPromptExistAsync(newPrompt.ID);
         Assert.True(exists);
+        var ownerId = await _repository.GetPromptOwnerIdAsync(newPrompt.ID);
+        Assert.Equal(_testUser.Id, ownerId);
 
-        // 3. Get it by condition
+        // 3. Get it by owner
+        var owned = await _repository.GetPromptsByOwnerAsync(_testUser.Id);
+        Assert.Contains(owned, p => p.ID == newPrompt.ID);
+
+        // 4. Get it by condition
         var retrievedPrompt = await _repository.GetPromptByConditionAsync(p => p.ID == newPrompt.ID);
         Assert.NotNull(retrievedPrompt);
 
-        // 4. Search for it
-        var searchResults = await _repository.SearchPromptAsync("Integration");
-        Assert.Contains(searchResults, p => p.ID == newPrompt.ID);
+        // 5. Search for it
+        var searchResults = await _repository.SearchPromptPagedAsync("Integration", 1, PaginationDefaults.MaxPageSize);
+        Assert.Contains(searchResults.Items, p => p.ID == newPrompt.ID);
 
-        // 5. Add to favorites
-        var addedToFavorites = await _repository.AddToFavoritesAsync(new FavoritePrompts() { UserID = _testUser.Id, PromptID = newPrompt.ID });
-        Assert.True(addedToFavorites);
-
-        // 6. Verify it's in favorites
-        var isFavorite = await _repository.IsFavoriteAsync(_testUser.Id, newPrompt.ID);
-        Assert.True(isFavorite);
-
-        // 7. Get favorite prompts
-        var favoritePrompts = await _repository.GetFavoritePromptsAsync(_testUser.Id);
-        Assert.Contains(favoritePrompts, p => p.ID == newPrompt.ID);
-
-        // 8. Update the prompt
+        // 6. Update the prompt
         var updatedPromptData = new Prompt
         {
             ID = newPrompt.ID,
@@ -817,19 +704,11 @@ public class PromptRepositoryTests : IDisposable
         Assert.NotNull(updatedPrompt);
         Assert.Equal("Updated Integration Prompt", updatedPrompt.Title);
 
-        // 9. Remove from favorites
-        var removedFromFavorites = await _repository.RemoveFromFavoritesAsync(_testUser.Id, newPrompt.ID);
-        Assert.True(removedFromFavorites);
-
-        // 10. Verify it's removed from favorites
-        isFavorite = await _repository.IsFavoriteAsync(_testUser.Id, newPrompt.ID);
-        Assert.False(isFavorite);
-
-        // 11. Delete the prompt
+        // 7. Delete the prompt
         var deleted = await _repository.DeletePromptAsync(newPrompt.ID);
         Assert.True(deleted);
 
-        // 12. Verify it no longer exists
+        // 8. Verify it no longer exists
         exists = await _repository.DoesPromptExistAsync(newPrompt.ID);
         Assert.False(exists);
     }

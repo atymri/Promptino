@@ -1,4 +1,4 @@
-﻿using AutoMapper;
+using AutoMapper;
 using AutoMapper.Extensions.ExpressionMapping;
 using Promptino.Core.Domain.Entities;
 using Promptino.Core.Domain.RepositoryContracts;
@@ -19,27 +19,28 @@ public class PromptGetterService : IPromptGetterService
         _mapper = mapper;
     }
 
-    public async Task<IEnumerable<PromptResponse>> GetAllPromptsAsync()
-    //=>  _mapper.Map<List<PromptResponse>>(await _promptRepository.GetPromptsAsync()) 
-    //?? new List<PromptResponse>();
+    public async Task<PagedResult<PromptResponse>> GetAllPromptsAsync(int page = 1, int pageSize = PaginationDefaults.DefaultPageSize)
     {
-        var prompts = await _promptRepository.GetPromptsAsync();
-        return _mapper.Map<List<PromptResponse>>(prompts);
+        (page, pageSize) = Normalize(page, pageSize);
+        var (totalCount, prompts) = await _promptRepository.GetPromptsPagedAsync(page, pageSize);
+        return new PagedResult<PromptResponse>(_mapper.Map<List<PromptResponse>>(prompts), page, pageSize, totalCount);
     }
 
-    public async Task<IEnumerable<FavoriteWithDetailsResponse>> GetFavoritePromptsAsync(Guid userId)
-        => _mapper.Map<List<FavoriteWithDetailsResponse>>
-             (await _promptRepository.GetFavoritePromptsAsync(userId));
-
-    public async Task<FavoritePromptResponse> GetFavoritesAsync(Guid promptId)
+    private static (int Page, int PageSize) Normalize(int page, int pageSize)
     {
-        var prompt = await _promptRepository.GetPromptByConditionAsync(p => p.ID == promptId);
-        if (prompt == null)
-            throw new PromptNotFoundExceptions("پرامپت مورد نظر وجود ندارد");
+        if (page < 1) page = 1;
+        if (pageSize < 1) pageSize = PaginationDefaults.DefaultPageSize;
+        if (pageSize > PaginationDefaults.MaxPageSize) pageSize = PaginationDefaults.MaxPageSize;
+        return (page, pageSize);
+    }
 
-        var favs = await _promptRepository.GetFavoritesAsync(promptId);
-        
-        return _mapper.Map<FavoritePromptResponse>(favs);
+    public async Task<IEnumerable<PromptResponse>> GetPromptsByOwnerAsync(Guid userId)
+    {
+        if (userId == Guid.Empty)
+            throw new ArgumentException("آیدی کاربر نمیتواند خالی باشد", nameof(userId));
+
+        var prompts = await _promptRepository.GetPromptsByOwnerAsync(userId);
+        return _mapper.Map<List<PromptResponse>>(prompts);
     }
 
     public async Task<PromptResponse> GetPromptByConditionAsync(Expression<Func<PromptResponse, bool>> condition)
@@ -64,23 +65,13 @@ public class PromptGetterService : IPromptGetterService
             (await _promptRepository.GetPromptsByConditionAsync(mappedCondition));
     }
 
-    public async Task<bool> IsPromptFavoriteAsync(Guid userId, Guid promptId)
-    {
-        if(userId == Guid.Empty)
-            throw new ArgumentException("آیدی کاربر نمیتواند خالی باشد", nameof(userId));
-
-        if(promptId == Guid.Empty)
-            throw new ArgumentException("آیدی پرامپت نمیتواند خالی باشد", nameof(promptId));
-
-        return await _promptRepository.IsFavoriteAsync(promptId, userId);
-    }
-
-    public async Task<IEnumerable<PromptResponse>> SearchPromptsAsync(string keyword)
+    public async Task<PagedResult<PromptResponse>> SearchPromptsAsync(string keyword, int page = 1, int pageSize = PaginationDefaults.DefaultPageSize)
     {
         if(string.IsNullOrWhiteSpace(keyword))
             throw new ArgumentException("کلیدواژه نمیتواند خالی باشد", nameof(keyword));
-    
-        var prompts = await _promptRepository.SearchPromptAsync(keyword);
-        return _mapper.Map<List<PromptResponse>>(prompts);
+
+        (page, pageSize) = Normalize(page, pageSize);
+        var (totalCount, prompts) = await _promptRepository.SearchPromptPagedAsync(keyword, page, pageSize);
+        return new PagedResult<PromptResponse>(_mapper.Map<List<PromptResponse>>(prompts), page, pageSize, totalCount);
     }
 }

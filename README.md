@@ -19,9 +19,12 @@ The project follows Clean Architecture with clear separation of concerns:
 
 - User authentication and authorization with JWT tokens
 - Role-based access control (Admin/User roles)
+- **User-owned prompts**: any authenticated user can create, update, and delete their own prompts; admins can manage all
 - CRUD operations for prompts and images
 - Image upload and storage management
-- Favorite prompts functionality
+- Save/bookmark prompts (replaces the old favorites system)
+- Like / Dislike reactions, YouTube-style: one reaction per user per prompt, clicking again un-toggles, switching replaces
+- Comments on prompts (public read, author or admin can delete)
 - Search capabilities for prompts
 - Many-to-many relationship between prompts and images (up to 6 images per prompt)
 - Automatic role initialization on startup
@@ -41,13 +44,15 @@ The project follows Clean Architecture with clear separation of concerns:
 
 ## Database Schema
 
-The application manages four main entities:
+The application manages these main entities:
 
 - **ApplicationUser**: Extended IdentityUser with additional properties
-- **Prompt**: Text prompts with title, description, and content
+- **Prompt**: Text prompts with title, description, content, and an owner (UserID)
 - **Image**: Image metadata with path and generation details
 - **PromptImage**: Junction table for prompt-image relationships
-- **FavoritePrompts**: User favorites tracking
+- **SavedPrompts**: User bookmarks of prompts (replaces FavoritePrompts)
+- **Comment**: User comments on a prompt
+- **PromptReaction**: One like/dislike per user per prompt (unique index on UserID+PromptID)
 
 ## API Endpoints
 
@@ -57,18 +62,33 @@ The application manages four main entities:
 - `GET /api/auth/logout` - User logout
 - `POST /api/auth/new-access-token` - Refresh access token
 
-### Prompts
-- `GET /api/prompts` - Get all prompts
+### Prompts (Public)
+- `GET /api/prompts` - Get all prompts (includes author, like/dislike/comment/save counts)
 - `GET /api/prompts/{id}` - Get prompt by ID
 - `GET /api/prompts/search?keyword={keyword}` - Search prompts
-- `GET /api/prompts/favorites/{userId}` - Get user's favorite prompts
-- `POST /api/prompts/prompts/favorites` - Add prompt to favorites
-- `DELETE /api/prompts/prompts/favorites/{userId}/{promptId}` - Remove from favorites
 
-### Admin - Prompts
-- `POST /api/admin/prompts` - Create prompt (Admin only)
-- `PUT /api/admin/prompts` - Update prompt (Admin only)
-- `DELETE /api/admin/prompts/{id}` - Delete prompt (Admin only)
+### Prompts (Owner or Admin)
+- `POST /api/prompts` - Create a prompt owned by the current user (Auth required)
+- `PUT /api/prompts` - Update own prompt; admins can update any (Auth required)
+- `DELETE /api/prompts/{id}` - Delete own prompt; admins can delete any (Auth required)
+- `GET /api/prompts/my` - Get the current user's prompts (Auth required)
+
+### Saves (replaces favorites)
+- `GET /api/prompts/saves` - Get the current user's saved prompts (Auth required)
+- `POST /api/prompts/saves` - Save a prompt: body `{ "promptID": "..." }` (Auth required)
+- `DELETE /api/prompts/saves/{promptId}` - Remove a prompt from saves (Auth required)
+- `GET /api/prompts/saves/count/{promptId}` - How many users saved a prompt (public)
+- `GET /api/prompts/saves/{promptId}/status` - Has the current user saved this prompt? (Auth required)
+
+### Reactions (Like / Dislike)
+- `PUT /api/prompts/{promptId}/reaction` - Set reaction: body `{ "type": 1 }` (1 = Like, 2 = Dislike); clicking the same again un-toggles (Auth required)
+- `DELETE /api/prompts/{promptId}/reaction` - Remove own reaction (Auth required)
+- `GET /api/prompts/{promptId}/reaction/state` - Get counts + caller's current reaction (public)
+
+### Comments
+- `GET /api/prompts/{promptId}/comments` - List comments on a prompt (public)
+- `POST /api/prompts/{promptId}/comments` - Add a comment (Auth required): body `{ "content": "..." }`
+- `DELETE /api/prompts/{promptId}/comments/{commentId}` - Delete own comment; admins can delete any (Auth required)
 
 ### Admin - Images
 - `POST /api/admin/CreateImage` - Upload image (Admin only)
@@ -118,6 +138,7 @@ The application enforces comprehensive validation:
 
 - Passwords require uppercase, lowercase, digit, and special character
 - Prompts: 3-50 chars title, 10-150 chars description, 30-600 chars content
+- Comments: 2-500 chars content
 - Images: Valid extensions (.jpg, .jpeg, .png, .gif, .bmp, .webp, .svg)
 - Email domains must be from recognized providers
 - Phone numbers must be 11 digits in Iranian format
@@ -142,9 +163,12 @@ dotnet test
 Custom exceptions are handled through middleware with appropriate HTTP status codes:
 
 - 400 Bad Request: Invalid input, validation errors
+- 403 Forbidden: You don't own this prompt/comment
 - 404 Not Found: Resource not found
-- 409 Conflict: Resource already exists
+- 409 Conflict: Resource already exists (e.g., prompt already saved, duplicate reaction)
 - 500 Internal Server Error: Unexpected errors
+
+> **Breaking change:** the old `/api/prompts/favorites*` endpoints have been removed. Use the `/saves` and `/{promptId}/reaction` endpoints instead. Applying this migration also wipes existing prompt data so every prompt gets an owner going forward.
 
 ## License
 

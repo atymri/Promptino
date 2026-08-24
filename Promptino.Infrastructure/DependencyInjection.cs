@@ -29,6 +29,10 @@ public static class DependencyInjection
         services.AddScoped<IImageRepository, ImageRepositorry>();
         services.AddScoped<IPromptImageRepository, PromptImageRepository>();
         services.AddScoped<ICategoryRepository, CategoryRepository>();
+        services.AddScoped<ISavedPromptRepository, SavedPromptRepository>();
+        services.AddScoped<IPromptReactionRepository, PromptReactionRepository>();
+        services.AddScoped<ICommentRepository, CommentRepository>();
+        services.AddScoped<ICommentLikeRepository, CommentLikeRepository>();
 
         return services;
     }

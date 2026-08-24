@@ -1,15 +1,15 @@
-﻿using System.ComponentModel.DataAnnotations.Schema;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Promptino.Core.Domain.Entities;
 
-public class FavoritePrompts : BaseEntity<Guid>
+public class PromptReaction : BaseEntity<Guid>
 {
     [ForeignKey(nameof(User))]
     public Guid UserID { get; set; }
     [ForeignKey(nameof(Prompt))]
     public Guid PromptID { get; set; }
+    public ReactionType Type { get; set; }
 
     public ApplicationUser User { get; set; }
     public Prompt Prompt { get; set; }
 }
-

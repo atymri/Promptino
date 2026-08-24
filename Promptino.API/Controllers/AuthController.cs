@@ -1,5 +1,6 @@
 ﻿using AutoMapper;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
@@ -12,6 +13,7 @@ using System.Text;
 namespace Promptino.API.Controllers;
 
 [AllowAnonymous]
+[EnableRateLimiting("auth")]
 public class AuthController : BaseController
 {
     private readonly UserManager<ApplicationUser> _userManager;

@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -11,13 +12,16 @@ public class RoleInitializationService : IHostedService
 {
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<RoleInitializationService> _logger;
-    
+    private readonly IConfiguration _configuration;
+
     public RoleInitializationService(
         IServiceProvider serviceProvider,
-        ILogger<RoleInitializationService> logger)
+        ILogger<RoleInitializationService> logger,
+        IConfiguration configuration)
     {
         _serviceProvider = serviceProvider;
         _logger = logger;
+        _configuration = configuration;
     }
 
     public async Task StartAsync(CancellationToken cancellationToken)
@@ -74,27 +78,36 @@ public class RoleInitializationService : IHostedService
         }
     }
 
-    private async Task CreateAdminUserAsync(UserManager<ApplicationUser> userManager, 
+    private async Task CreateAdminUserAsync(UserManager<ApplicationUser> userManager,
         RoleManager<ApplicationRole> roleManager, ITokenService tokenService)
     {
         try
         {
-            var adminEmail = "promptinoadmin@gmail.com";
+            var adminEmail = _configuration["SeedAdmin:Email"];
+            var adminUserName = _configuration["SeedAdmin:UserName"];
+            var password = _configuration["SeedAdmin:Password"];
+
+            if (string.IsNullOrWhiteSpace(adminEmail) ||
+                string.IsNullOrWhiteSpace(adminUserName) ||
+                string.IsNullOrWhiteSpace(password))
+            {
+                _logger.LogWarning("SeedAdmin configuration is missing; skipping admin user seeding");
+                return;
+            }
+
             var adminUser = await userManager.FindByEmailAsync(adminEmail);
 
             if (adminUser == null)
             {
                 var admin = new ApplicationUser
                 {
-                    UserName = "admin",
+                    UserName = adminUserName,
                     Email = adminEmail,
                     FirstName = "مدیر",
                     LastName = "سیستم",
                     RefreshToken = string.Empty,
                     RefreshTokenExpiration = DateTime.MinValue
                 };
-
-                var password = "4sB4bId4RcH4M4N@123";
 
                 var result = await userManager.CreateAsync(admin, password);
 

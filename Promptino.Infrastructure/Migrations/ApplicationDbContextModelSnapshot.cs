@@ -212,10 +212,9 @@ namespace Promptino.Infrastructure.Migrations
                         .HasColumnType("bit");
 
                     b.Property<string>("RefreshToken")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<DateTime>("RefreshTokenExpiration")
+                    b.Property<DateTime?>("RefreshTokenExpiration")
                         .HasColumnType("datetime2");
 
                     b.Property<string>("SecurityStamp")
@@ -241,7 +240,7 @@ namespace Promptino.Infrastructure.Migrations
                     b.ToTable("AspNetUsers", (string)null);
                 });
 
-            modelBuilder.Entity("Promptino.Core.Domain.Entities.FavoritePrompts", b =>
+            modelBuilder.Entity("Promptino.Core.Domain.Entities.Category", b =>
                 {
                     b.Property<Guid>("ID")
                         .ValueGeneratedOnAdd()
@@ -250,8 +249,40 @@ namespace Promptino.Infrastructure.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<DateTime>("LastUpdatedAt")
                         .HasColumnType("datetime2");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("ID");
+
+                    b.ToTable("Categories");
+                });
+
+            modelBuilder.Entity("Promptino.Core.Domain.Entities.Comment", b =>
+                {
+                    b.Property<Guid>("ID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("LastUpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("ParentCommentID")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<Guid>("PromptID")
                         .HasColumnType("uniqueidentifier");
@@ -261,11 +292,41 @@ namespace Promptino.Infrastructure.Migrations
 
                     b.HasKey("ID");
 
+                    b.HasIndex("ParentCommentID");
+
                     b.HasIndex("PromptID");
 
                     b.HasIndex("UserID");
 
-                    b.ToTable("FavoritePrompts");
+                    b.ToTable("Comments");
+                });
+
+            modelBuilder.Entity("Promptino.Core.Domain.Entities.CommentLike", b =>
+                {
+                    b.Property<Guid>("ID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("CommentID")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("LastUpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("UserID")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("ID");
+
+                    b.HasIndex("CommentID");
+
+                    b.HasIndex("UserID", "CommentID")
+                        .IsUnique();
+
+                    b.ToTable("CommentLikes");
                 });
 
             modelBuilder.Entity("Promptino.Core.Domain.Entities.Image", b =>
@@ -321,9 +382,41 @@ namespace Promptino.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<Guid>("UserID")
+                        .HasColumnType("uniqueidentifier");
+
                     b.HasKey("ID");
 
+                    b.HasIndex("UserID");
+
                     b.ToTable("Prompts");
+                });
+
+            modelBuilder.Entity("Promptino.Core.Domain.Entities.PromptCategories", b =>
+                {
+                    b.Property<Guid>("ID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("CategoryId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("LastUpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("PromptId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("ID");
+
+                    b.HasIndex("CategoryId");
+
+                    b.HasIndex("PromptId");
+
+                    b.ToTable("PromptCategories");
                 });
 
             modelBuilder.Entity("Promptino.Core.Domain.Entities.PromptImage", b =>
@@ -351,6 +444,64 @@ namespace Promptino.Infrastructure.Migrations
                     b.HasIndex("PromptID");
 
                     b.ToTable("PromptImages");
+                });
+
+            modelBuilder.Entity("Promptino.Core.Domain.Entities.PromptReaction", b =>
+                {
+                    b.Property<Guid>("ID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("LastUpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("PromptID")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("UserID")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("ID");
+
+                    b.HasIndex("PromptID");
+
+                    b.HasIndex("UserID", "PromptID")
+                        .IsUnique();
+
+                    b.ToTable("PromptReactions");
+                });
+
+            modelBuilder.Entity("Promptino.Core.Domain.Entities.SavedPrompt", b =>
+                {
+                    b.Property<Guid>("ID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("LastUpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("PromptID")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("UserID")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("ID");
+
+                    b.HasIndex("PromptID");
+
+                    b.HasIndex("UserID");
+
+                    b.ToTable("SavedPrompts");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<System.Guid>", b =>
@@ -404,23 +555,79 @@ namespace Promptino.Infrastructure.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("Promptino.Core.Domain.Entities.FavoritePrompts", b =>
+            modelBuilder.Entity("Promptino.Core.Domain.Entities.Comment", b =>
                 {
+                    b.HasOne("Promptino.Core.Domain.Entities.Comment", "ParentComment")
+                        .WithMany("Replies")
+                        .HasForeignKey("ParentCommentID")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("Promptino.Core.Domain.Entities.Prompt", "Prompt")
-                        .WithMany("FavoritePrompts")
+                        .WithMany("Comments")
                         .HasForeignKey("PromptID")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.HasOne("Promptino.Core.Domain.Entities.ApplicationUser", "User")
-                        .WithMany("FavoritePrompts")
+                        .WithMany("Comments")
                         .HasForeignKey("UserID")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
+
+                    b.Navigation("ParentComment");
 
                     b.Navigation("Prompt");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Promptino.Core.Domain.Entities.CommentLike", b =>
+                {
+                    b.HasOne("Promptino.Core.Domain.Entities.Comment", "Comment")
+                        .WithMany("Likes")
+                        .HasForeignKey("CommentID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Promptino.Core.Domain.Entities.ApplicationUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Comment");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Promptino.Core.Domain.Entities.Prompt", b =>
+                {
+                    b.HasOne("Promptino.Core.Domain.Entities.ApplicationUser", "User")
+                        .WithMany("Prompts")
+                        .HasForeignKey("UserID")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Promptino.Core.Domain.Entities.PromptCategories", b =>
+                {
+                    b.HasOne("Promptino.Core.Domain.Entities.Category", "Category")
+                        .WithMany("PromptCategories")
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Promptino.Core.Domain.Entities.Prompt", "Prompt")
+                        .WithMany("PromptCategories")
+                        .HasForeignKey("PromptId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Category");
+
+                    b.Navigation("Prompt");
                 });
 
             modelBuilder.Entity("Promptino.Core.Domain.Entities.PromptImage", b =>
@@ -442,9 +649,65 @@ namespace Promptino.Infrastructure.Migrations
                     b.Navigation("Prompt");
                 });
 
+            modelBuilder.Entity("Promptino.Core.Domain.Entities.PromptReaction", b =>
+                {
+                    b.HasOne("Promptino.Core.Domain.Entities.Prompt", "Prompt")
+                        .WithMany("Reactions")
+                        .HasForeignKey("PromptID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Promptino.Core.Domain.Entities.ApplicationUser", "User")
+                        .WithMany("Reactions")
+                        .HasForeignKey("UserID")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("Prompt");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Promptino.Core.Domain.Entities.SavedPrompt", b =>
+                {
+                    b.HasOne("Promptino.Core.Domain.Entities.Prompt", "Prompt")
+                        .WithMany("SavedPrompts")
+                        .HasForeignKey("PromptID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Promptino.Core.Domain.Entities.ApplicationUser", "User")
+                        .WithMany("SavedPrompts")
+                        .HasForeignKey("UserID")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("Prompt");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("Promptino.Core.Domain.Entities.ApplicationUser", b =>
                 {
-                    b.Navigation("FavoritePrompts");
+                    b.Navigation("Comments");
+
+                    b.Navigation("Prompts");
+
+                    b.Navigation("Reactions");
+
+                    b.Navigation("SavedPrompts");
+                });
+
+            modelBuilder.Entity("Promptino.Core.Domain.Entities.Category", b =>
+                {
+                    b.Navigation("PromptCategories");
+                });
+
+            modelBuilder.Entity("Promptino.Core.Domain.Entities.Comment", b =>
+                {
+                    b.Navigation("Likes");
+
+                    b.Navigation("Replies");
                 });
 
             modelBuilder.Entity("Promptino.Core.Domain.Entities.Image", b =>
@@ -454,9 +717,15 @@ namespace Promptino.Infrastructure.Migrations
 
             modelBuilder.Entity("Promptino.Core.Domain.Entities.Prompt", b =>
                 {
-                    b.Navigation("FavoritePrompts");
+                    b.Navigation("Comments");
+
+                    b.Navigation("PromptCategories");
 
                     b.Navigation("PromptImages");
+
+                    b.Navigation("Reactions");
+
+                    b.Navigation("SavedPrompts");
                 });
 #pragma warning restore 612, 618
         }
