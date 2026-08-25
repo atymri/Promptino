@@ -11,7 +11,13 @@ public class ApplicationUser : IdentityUser<Guid>
     public List<Prompt> Prompts { get; set; } = new();
     public List<Comment> Comments { get; set; } = new();
     public List<PromptReaction> Reactions { get; set; } = new();
+    public List<PromptReport> ReportsFiled { get; set; } = new();
     public int LockoutMultiplier { get; set; } = 1;
     public string? RefreshToken { get; set; }
     public DateTime? RefreshTokenExpiration { get; set; }
+
+    // Rotation: the token that was current before the latest refresh.
+    // Presenting it again is evidence of token theft (reuse detection).
+    public string? PreviousRefreshToken { get; set; }
+    public DateTime? PreviousRefreshTokenExpiration { get; set; }
 }

@@ -46,4 +46,9 @@ public class SavedPromptRepository : ISavedPromptRepository
 
     public async Task<int> GetSavedCountAsync(Guid promptId)
         => await _context.SavedPrompts.CountAsync(s => s.PromptID == promptId);
+
+    public async Task RemoveAllForPromptAsync(Guid promptId)
+        => await _context.SavedPrompts
+            .Where(s => s.PromptID == promptId)
+            .ExecuteDeleteAsync();
 }

@@ -61,6 +61,10 @@ public static class DependencyInjection
         services.AddScoped<ICommentLikeSetterService, Promptino.Core.Services.CommentServices.CommentLikeSetterService>();
         services.AddScoped<ICommentLikeRemoverService, Promptino.Core.Services.CommentServices.CommentLikeRemoverService>();
 
+        services.AddScoped<Promptino.Core.ServiceContracts.ReportServiceContracts.IPromptReportAdderService, Promptino.Core.Services.ReportServices.PromptReportAdderService>();
+        services.AddScoped<Promptino.Core.ServiceContracts.ReportServiceContracts.IPromptReportGetterService, Promptino.Core.Services.ReportServices.PromptReportGetterService>();
+        services.AddScoped<Promptino.Core.ServiceContracts.ReportServiceContracts.IPromptReportResolverService, Promptino.Core.Services.ReportServices.PromptReportResolverService>();
+
 
 
         services.Configure<JwtOptions>(configuration.GetSection(nameof(JwtOptions)));

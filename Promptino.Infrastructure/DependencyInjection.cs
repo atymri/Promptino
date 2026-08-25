@@ -33,6 +33,8 @@ public static class DependencyInjection
         services.AddScoped<IPromptReactionRepository, PromptReactionRepository>();
         services.AddScoped<ICommentRepository, CommentRepository>();
         services.AddScoped<ICommentLikeRepository, CommentLikeRepository>();
+        services.AddScoped<IPromptReportRepository, PromptReportRepository>();
+        services.AddScoped<IPromptVersionRepository, PromptVersionRepository>();
 
         return services;
     }

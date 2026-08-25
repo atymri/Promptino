@@ -6,6 +6,7 @@ namespace Promptino.Core.Domain.RepositoryContracts;
 public interface IPromptRepository
 {
     Task<(int TotalCount, IReadOnlyList<Prompt> Items)> GetPromptsPagedAsync(int page, int pageSize);
+    Task<IReadOnlyList<Prompt>> GetPromptsByCursorAsync(DateTime? cursorCreatedAt, Guid? cursorId, int pageSize);
     Task<(int TotalCount, IReadOnlyList<Prompt> Items)> SearchPromptPagedAsync(string keyword, int page, int pageSize);
 
     Task<IEnumerable<Prompt>> GetPromptsByConditionAsync(Expression<Func<Prompt, bool>> condition);
@@ -19,4 +20,5 @@ public interface IPromptRepository
     Task<bool> DeletePromptAsync(Guid id);
 
     Task<bool> DoesPromptExistAsync(Guid promptId);
+    Task<bool> UpdateHiddenFlagAsync(Guid promptId, bool isHidden);
 }

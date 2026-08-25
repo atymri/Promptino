@@ -10,6 +10,10 @@ public class Prompt : BaseEntity<Guid>
     [ForeignKey(nameof(User))]
     public Guid UserID { get; set; }
 
+    // Moderation: hidden prompts are excluded from public listings but remain
+    // visible to their owner and admins (soft-hide, reversible)
+    public bool IsHidden { get; set; }
+
     public ApplicationUser User { get; set; }
     public virtual List<PromptImage> PromptImages { get; set; } = new();
     public virtual List<SavedPrompt> SavedPrompts { get; set; } = new();

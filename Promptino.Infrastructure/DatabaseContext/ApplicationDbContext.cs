@@ -19,13 +19,33 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, Applicati
     public virtual DbSet<Comment> Comments { get; set; }
     public virtual DbSet<PromptReaction> PromptReactions { get; set; }
     public virtual DbSet<CommentLike> CommentLikes { get; set; }
+    public virtual DbSet<PromptReport> PromptReports { get; set; }
+    public virtual DbSet<PromptVersion> PromptVersions { get; set; }
+
+    public static bool IsSqlServer(DbContext context)
+        => context.Database.ProviderName?.Contains("SqlServer", StringComparison.OrdinalIgnoreCase) == true;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
 
+        modelBuilder.Entity<PromptReport>()
+            .HasIndex(r => new { r.ReporterID, r.PromptID })
+            .IsUnique()
+            .HasFilter($"[{nameof(PromptReport.Status)}] = 0"); // one PENDING report per user per prompt
+
+        modelBuilder.Entity<PromptReport>()
+            .HasOne(r => r.Prompt)
+            .WithMany()
+            .HasForeignKey(r => r.PromptID)
+            .OnDelete(DeleteBehavior.Cascade);
+
         modelBuilder.Entity<PromptReaction>()
             .HasIndex(r => new { r.UserID, r.PromptID })
+            .IsUnique();
+
+        modelBuilder.Entity<PromptVersion>()
+            .HasIndex(v => new { v.PromptID, v.VersionNumber })
             .IsUnique();
 
         // SQL Server rejects multiple cascade paths (e.g. Users→Prompts→Comments alongside

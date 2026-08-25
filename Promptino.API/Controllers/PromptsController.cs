@@ -55,6 +55,26 @@ public class PromptsController : BaseController
         return Ok(prompts);
     }
 
+    // Cursor feed: stable under concurrent inserts — preferred for infinite scroll
+    [HttpGet("feed")]
+    [ProducesResponseType(typeof(CursorResult<PromptResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> GetFeed([FromQuery] string? cursor = null, [FromQuery] int pageSize = PaginationDefaults.DefaultPageSize)
+    {
+        try
+        {
+            var result = await _promptGetterService.GetFeedByCursorAsync(cursor, pageSize);
+            return Ok(result);
+        }
+        catch (ArgumentException)
+        {
+            return Problem(
+                "کرسر ارسالی نامعتبر است.",
+                statusCode: StatusCodes.Status400BadRequest,
+                title: "درخواست نامعتبر");
+        }
+    }
+
     [HttpGet("search")]
     [ProducesResponseType(typeof(PagedResult<PromptResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -149,6 +169,71 @@ public class PromptsController : BaseController
 
         var prompts = await _promptGetterService.GetPromptsByOwnerAsync(userId.Value);
         return Ok(prompts);
+    }
+
+    // ─────────────────────────────── Version History (Owner or Admin) ───────────────────────────────
+
+    [Authorize]
+    [HttpGet("{id:guid}/versions")]
+    [ProducesResponseType(typeof(IEnumerable<PromptVersionResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetPromptVersions(Guid id)
+    {
+        var userId = GetCurrentUserId();
+        if (userId is null)
+            return InvalidUserProblem();
+
+        var prompt = await _promptGetterService.GetPromptByConditionAsync(p => p.Id == id);
+        if (prompt is null)
+            return Problem(
+                "پرامپت مورد نظر یافت نشد",
+                statusCode: StatusCodes.Status404NotFound,
+                title: "خطای یافت نشد");
+
+        // Ownership check: the response already carries AuthorId, so no extra service call needed
+        if (!User.IsInRole("Admin") && prompt.AuthorId != userId.Value)
+            return Problem(
+                "شما اجازه مشاهده تاریخچه این پرامپت را ندارید",
+                statusCode: StatusCodes.Status403Forbidden,
+                title: "عدم دسترسی");
+
+        var versions = await _promptGetterService.GetVersionsAsync(id);
+        return Ok(versions);
+    }
+
+    [Authorize]
+    [HttpGet("{id:guid}/versions/{versionNumber:int}")]
+    [ProducesResponseType(typeof(PromptVersionResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetPromptVersion(Guid id, int versionNumber)
+    {
+        var userId = GetCurrentUserId();
+        if (userId is null)
+            return InvalidUserProblem();
+
+        var prompt = await _promptGetterService.GetPromptByConditionAsync(p => p.Id == id);
+        if (prompt is null)
+            return Problem(
+                "پرامپت مورد نظر یافت نشد",
+                statusCode: StatusCodes.Status404NotFound,
+                title: "خطای یافت نشد");
+
+        if (!User.IsInRole("Admin") && prompt.AuthorId != userId.Value)
+            return Problem(
+                "شما اجازه مشاهده تاریخچه این پرامپت را ندارید",
+                statusCode: StatusCodes.Status403Forbidden,
+                title: "عدم دسترسی");
+
+        var version = await _promptGetterService.GetVersionAsync(id, versionNumber);
+        if (version is null)
+            return Problem(
+                "نسخه مورد نظر یافت نشد",
+                statusCode: StatusCodes.Status404NotFound,
+                title: "خطای یافت نشد");
+
+        return Ok(version);
     }
 
     // ─────────────────────────────── Saves ───────────────────────────────

@@ -112,7 +112,7 @@ public class PromptServiceTest
             .Setup(r => r.GetPromptsPagedAsync(It.IsAny<int>(), It.IsAny<int>()))
             .ReturnsAsync((list.Count, (IReadOnlyList<Prompt>)list));
 
-        var service = new PromptGetterService(mockPromptRepo.Object, _mapper);
+        var service = new PromptGetterService(mockPromptRepo.Object, Mock.Of<Promptino.Core.Domain.RerpositoryContracts.IPromptVersionRepository>(), _mapper);
 
         var result = await service.GetAllPromptsAsync();
 
@@ -129,7 +129,7 @@ public class PromptServiceTest
             .Setup(r => r.GetPromptsPagedAsync(It.IsAny<int>(), It.IsAny<int>()))
             .ReturnsAsync((0, (IReadOnlyList<Prompt>)new List<Prompt>()));
 
-        var service = new PromptGetterService(mockPromptRepo.Object, _mapper);
+        var service = new PromptGetterService(mockPromptRepo.Object, Mock.Of<Promptino.Core.Domain.RerpositoryContracts.IPromptVersionRepository>(), _mapper);
 
         var result = await service.GetAllPromptsAsync();
 
@@ -140,7 +140,7 @@ public class PromptServiceTest
     public async Task GetPromptsByOwnerAsync_ShouldThrow_WhenUserIdEmpty()
     {
         var mockPromptRepo = new Mock<IPromptRepository>();
-        var service = new PromptGetterService(mockPromptRepo.Object, _mapper);
+        var service = new PromptGetterService(mockPromptRepo.Object, Mock.Of<Promptino.Core.Domain.RerpositoryContracts.IPromptVersionRepository>(), _mapper);
 
         await Assert.ThrowsAsync<ArgumentException>(() => service.GetPromptsByOwnerAsync(Guid.Empty));
     }
@@ -159,7 +159,7 @@ public class PromptServiceTest
 
         mockPromptRepo.Setup(r => r.GetPromptsByOwnerAsync(ownerId)).ReturnsAsync(list);
 
-        var service = new PromptGetterService(mockPromptRepo.Object, _mapper);
+        var service = new PromptGetterService(mockPromptRepo.Object, Mock.Of<Promptino.Core.Domain.RerpositoryContracts.IPromptVersionRepository>(), _mapper);
 
         var result = await service.GetPromptsByOwnerAsync(ownerId);
 
@@ -183,7 +183,7 @@ public class PromptServiceTest
             .Setup(r => r.GetPromptsPagedAsync(It.IsAny<int>(), It.IsAny<int>()))
             .ReturnsAsync((1, (IReadOnlyList<Prompt>)new List<Prompt> { prompt }));
 
-        var service = new PromptGetterService(mockPromptRepo.Object, _mapper);
+        var service = new PromptGetterService(mockPromptRepo.Object, Mock.Of<Promptino.Core.Domain.RerpositoryContracts.IPromptVersionRepository>(), _mapper);
 
         var result = (await service.GetAllPromptsAsync()).Items.Single();
 
@@ -198,7 +198,7 @@ public class PromptServiceTest
     public async Task GetPromptByConditionAsync_ShouldThrow_WhenConditionNull()
     {
         var mockPromptRepo = new Mock<IPromptRepository>();
-        var service = new PromptGetterService(mockPromptRepo.Object, _mapper);
+        var service = new PromptGetterService(mockPromptRepo.Object, Mock.Of<Promptino.Core.Domain.RerpositoryContracts.IPromptVersionRepository>(), _mapper);
 
         await Assert.ThrowsAsync<ArgumentNullException>(() => service.GetPromptByConditionAsync(null));
     }
@@ -211,7 +211,7 @@ public class PromptServiceTest
 
         mockPromptRepo.Setup(r => r.GetPromptByConditionAsync(It.IsAny<Expression<Func<Prompt, bool>>>())).ReturnsAsync(prompt);
 
-        var service = new PromptGetterService(mockPromptRepo.Object, _mapper);
+        var service = new PromptGetterService(mockPromptRepo.Object, Mock.Of<Promptino.Core.Domain.RerpositoryContracts.IPromptVersionRepository>(), _mapper);
 
         Expression<Func<PromptResponse, bool>> cond = p => p.Title == "A";
 
@@ -228,7 +228,7 @@ public class PromptServiceTest
 
         mockPromptRepo.Setup(r => r.GetPromptByConditionAsync(It.IsAny<Expression<Func<Prompt, bool>>>())).ReturnsAsync((Prompt)null);
 
-        var service = new PromptGetterService(mockPromptRepo.Object, _mapper);
+        var service = new PromptGetterService(mockPromptRepo.Object, Mock.Of<Promptino.Core.Domain.RerpositoryContracts.IPromptVersionRepository>(), _mapper);
 
         Expression<Func<PromptResponse, bool>> cond = p => p.Title == "X";
 
@@ -241,7 +241,7 @@ public class PromptServiceTest
     public async Task SearchPromptsAsync_ShouldThrow_WhenKeywordNullOrWhitespace()
     {
         var mockPromptRepo = new Mock<IPromptRepository>();
-        var service = new PromptGetterService(mockPromptRepo.Object, _mapper);
+        var service = new PromptGetterService(mockPromptRepo.Object, Mock.Of<Promptino.Core.Domain.RerpositoryContracts.IPromptVersionRepository>(), _mapper);
 
         await Assert.ThrowsAsync<ArgumentException>(() => service.SearchPromptsAsync(null));
         await Assert.ThrowsAsync<ArgumentException>(() => service.SearchPromptsAsync("   "));
@@ -255,7 +255,7 @@ public class PromptServiceTest
             .Setup(r => r.SearchPromptPagedAsync("x", It.IsAny<int>(), It.IsAny<int>()))
             .ReturnsAsync((0, (IReadOnlyList<Prompt>)new List<Prompt>()));
 
-        var service = new PromptGetterService(mockPromptRepo.Object, _mapper);
+        var service = new PromptGetterService(mockPromptRepo.Object, Mock.Of<Promptino.Core.Domain.RerpositoryContracts.IPromptVersionRepository>(), _mapper);
 
         var result = await service.SearchPromptsAsync("x");
 
@@ -271,7 +271,7 @@ public class PromptServiceTest
             .Setup(r => r.SearchPromptPagedAsync("test", It.IsAny<int>(), It.IsAny<int>()))
             .ReturnsAsync((found.Count, (IReadOnlyList<Prompt>)found));
 
-        var service = new PromptGetterService(mockPromptRepo.Object, _mapper);
+        var service = new PromptGetterService(mockPromptRepo.Object, Mock.Of<Promptino.Core.Domain.RerpositoryContracts.IPromptVersionRepository>(), _mapper);
 
         var result = await service.SearchPromptsAsync("test");
 
@@ -293,7 +293,7 @@ public class PromptServiceTest
         mockPromptRepo.Setup(r => r.GetPromptByConditionAsync(It.IsAny<Expression<Func<Prompt, bool>>>()))
                       .ReturnsAsync((Prompt)null);
 
-        var service = new PromptUpdaterService(mockPromptRepo.Object, _mapper);
+        var service = new PromptUpdaterService(mockPromptRepo.Object, Mock.Of<Promptino.Core.Domain.RerpositoryContracts.IPromptVersionRepository>(), _mapper);
 
         var req = new PromptUpdateRequest(Guid.NewGuid(), "t", "d", "c");
 
@@ -310,7 +310,7 @@ public class PromptServiceTest
         mockPromptRepo.Setup(r => r.GetPromptByConditionAsync(It.IsAny<Expression<Func<Prompt, bool>>>()))
                       .ReturnsAsync(existing);
 
-        var service = new PromptUpdaterService(mockPromptRepo.Object, _mapper);
+        var service = new PromptUpdaterService(mockPromptRepo.Object, Mock.Of<Promptino.Core.Domain.RerpositoryContracts.IPromptVersionRepository>(), _mapper);
 
         var req = new PromptUpdateRequest(existing.ID, "new", "d", "c");
 
@@ -330,7 +330,7 @@ public class PromptServiceTest
                       .ReturnsAsync(existing);
         mockPromptRepo.Setup(r => r.UpdatePromptAsync(It.IsAny<Prompt>())).ReturnsAsync(existing);
 
-        var service = new PromptUpdaterService(mockPromptRepo.Object, _mapper);
+        var service = new PromptUpdaterService(mockPromptRepo.Object, Mock.Of<Promptino.Core.Domain.RerpositoryContracts.IPromptVersionRepository>(), _mapper);
 
         var req = new PromptUpdateRequest(existing.ID, "new", "d", "c");
 
@@ -351,13 +351,53 @@ public class PromptServiceTest
                       .ReturnsAsync(existing);
         mockPromptRepo.Setup(r => r.UpdatePromptAsync(It.IsAny<Prompt>())).ReturnsAsync(existing);
 
-        var service = new PromptUpdaterService(mockPromptRepo.Object, _mapper);
+        var service = new PromptUpdaterService(mockPromptRepo.Object, Mock.Of<Promptino.Core.Domain.RerpositoryContracts.IPromptVersionRepository>(), _mapper);
 
         var req = new PromptUpdateRequest(existing.ID, "new", "d", "c");
 
         var result = await service.UpdatePromptAsync(req, Guid.NewGuid(), isAdmin: true);
 
         Assert.NotNull(result);
+    }
+
+    [Fact]
+    public async Task UpdatePromptAsync_ShouldSnapshotVersion_BeforeMutating()
+    {
+        var mockPromptRepo = new Mock<IPromptRepository>();
+        var mockVersionRepo = new Mock<Promptino.Core.Domain.RerpositoryContracts.IPromptVersionRepository>();
+
+        var ownerId = Guid.NewGuid();
+        var existing = MakePrompt(ownerId: ownerId);
+        existing.Title = "old-title";
+        existing.Description = "old-description";
+        existing.Content = "old-content";
+
+        mockPromptRepo.Setup(r => r.GetPromptByConditionAsync(It.IsAny<Expression<Func<Prompt, bool>>>()))
+                      .ReturnsAsync(existing);
+        mockPromptRepo.Setup(r => r.UpdatePromptAsync(It.IsAny<Prompt>())).ReturnsAsync(existing);
+        mockVersionRepo.Setup(r => r.GetNextVersionNumberAsync(existing.ID)).ReturnsAsync(1);
+
+        PromptVersion? captured = null;
+        mockVersionRepo.Setup(r => r.AddAsync(It.IsAny<PromptVersion>()))
+            .Callback<PromptVersion>(v => captured = v)
+            .Returns(Task.CompletedTask);
+
+        var service = new PromptUpdaterService(mockPromptRepo.Object, mockVersionRepo.Object, _mapper);
+
+        var req = new PromptUpdateRequest(existing.ID, "new-title", "new-description", "new-content-at-least-long-enough");
+        await service.UpdatePromptAsync(req, ownerId, isAdmin: false);
+
+        Assert.NotNull(captured);
+        Assert.Equal(existing.ID, captured.PromptID);
+        Assert.Equal("old-title", captured.Title);
+        Assert.Equal("old-description", captured.Description);
+        Assert.Equal("old-content", captured.Content);
+        Assert.Equal(1, captured.VersionNumber);
+        Assert.Equal(ownerId, captured.EditedByUserID);
+
+        // Snapshot must be written BEFORE the update is applied
+        mockVersionRepo.Verify(r => r.AddAsync(It.IsAny<PromptVersion>()), Times.Once);
+        mockPromptRepo.Verify(r => r.UpdatePromptAsync(It.IsAny<Prompt>()), Times.Once);
     }
 
     #endregion

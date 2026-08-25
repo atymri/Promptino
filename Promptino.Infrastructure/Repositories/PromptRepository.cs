@@ -62,6 +62,14 @@ public class PromptRepository : IPromptRepository
     public async Task<bool> DoesPromptExistAsync(Guid promptId)
         => await _context.Prompts.FindAsync(promptId) != null;
 
+    public async Task<bool> UpdateHiddenFlagAsync(Guid promptId, bool isHidden)
+    {
+        var rows = await _context.Prompts
+            .Where(p => p.ID == promptId)
+            .ExecuteUpdateAsync(s => s.SetProperty(p => p.IsHidden, isHidden));
+        return rows > 0;
+    }
+
     public async Task<Guid?> GetPromptOwnerIdAsync(Guid promptId)
         => await _context.Prompts
             .Where(p => p.ID == promptId)
@@ -94,7 +102,8 @@ public class PromptRepository : IPromptRepository
     public async Task<(int TotalCount, IReadOnlyList<Prompt> Items)> GetPromptsPagedAsync(int page, int pageSize)
     {
         var query = _context.Prompts
-            .AsNoTracking();
+            .AsNoTracking()
+            .Where(p => !p.IsHidden);
 
         var totalCount = await query.CountAsync();
         var items = await query
@@ -125,14 +134,34 @@ public class PromptRepository : IPromptRepository
         .Where(condition)
         .ToListAsync();
 
+    // Keyset pagination: fetch pageSize+1 to detect whether a next page exists
+    public async Task<IReadOnlyList<Prompt>> GetPromptsByCursorAsync(DateTime? cursorCreatedAt, Guid? cursorId, int pageSize)
+    {
+        var query = _context.Prompts
+            .AsNoTracking()
+            .Where(p => !p.IsHidden);
+
+        if (cursorCreatedAt.HasValue && cursorId.HasValue)
+        {
+            query = query.Where(p => p.CreatedAt < cursorCreatedAt.Value
+                || (p.CreatedAt == cursorCreatedAt.Value && p.ID.CompareTo(cursorId.Value) < 0));
+        }
+
+        return await query
+            .Include(p => p.User)
+            .Include(p => p.PromptImages)
+            .ThenInclude(pi => pi.Image)
+            .OrderByDescending(p => p.CreatedAt)
+            .ThenByDescending(p => p.ID)
+            .Take(pageSize + 1)
+            .ToListAsync();
+    }
+
     public async Task<(int TotalCount, IReadOnlyList<Prompt> Items)> SearchPromptPagedAsync(string keyword, int page, int pageSize)
     {
         if (keyword == null) return (0, Array.Empty<Prompt>());
 
-        var query = _context.Prompts
-            .AsNoTracking()
-            .Where(p => p.Title.ToLower().Contains(keyword.ToLower())
-                     || p.Description.ToLower().Contains(keyword.ToLower()));
+        var query = BuildSearchQuery(keyword);
 
         var totalCount = await query.CountAsync();
         var items = await query
@@ -145,6 +174,27 @@ public class PromptRepository : IPromptRepository
             .ToListAsync();
 
         return (totalCount, items);
+    }
+
+    // FREETEXT ranks by relevance and handles inflectional variants; falls back to
+    // LIKE when the Full-Text Engine is unavailable (InMemory tests, SQL Express basic)
+    private IQueryable<Prompt> BuildSearchQuery(string keyword)
+    {
+        var baseQuery = _context.Prompts
+            .AsNoTracking()
+            .Where(p => !p.IsHidden);
+
+        if (ApplicationDbContext.IsSqlServer(_context))
+        {
+            return baseQuery.Where(p =>
+                EF.Functions.FreeText(EF.Property<string>(p, "Title"), keyword)
+                || EF.Functions.FreeText(EF.Property<string>(p, "Description"), keyword)
+                || EF.Functions.FreeText(EF.Property<string>(p, "Content"), keyword));
+        }
+
+        var like = keyword.ToLower();
+        return baseQuery.Where(p => p.Title.ToLower().Contains(like)
+                                 || p.Description.ToLower().Contains(like));
     }
 
     public async Task<Prompt?> UpdatePromptAsync(Prompt prompt)

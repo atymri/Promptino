@@ -21,6 +21,21 @@ public record PromptUpdateRequest(
     { }
 };
 
+public record PromptVersionResponse(
+    Guid Id,
+    Guid PromptId,
+    int VersionNumber,
+    string Title,
+    string Description,
+    string Content,
+    Guid EditedByUserId,
+    DateTime CreatedAt
+)
+{
+    public PromptVersionResponse() : this(default, default, default, default, default, default, default, default)
+    { }
+};
+
 public record PromptResponse(
     Guid Id,
     string Title,

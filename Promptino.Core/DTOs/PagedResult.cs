@@ -14,3 +14,12 @@ public record PagedResult<T>(
 {
     public int TotalPages => PageSize > 0 ? (int)Math.Ceiling(TotalCount / (double)PageSize) : 0;
 };
+
+// Opaque keyset cursor: Base64("createdAtTicks:id"). Stable under concurrent
+// inserts, unlike offset paging which skips/duplicates rows mid-scroll.
+public record CursorResult<T>(
+    IReadOnlyList<T> Items,
+    string? NextCursor)
+{
+    public static CursorResult<T> Empty() => new(Array.Empty<T>(), null);
+};

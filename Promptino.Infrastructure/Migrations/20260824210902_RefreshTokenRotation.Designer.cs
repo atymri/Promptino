@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Promptino.Infrastructure.DatabaseContext;
 
@@ -11,9 +12,11 @@ using Promptino.Infrastructure.DatabaseContext;
 namespace Promptino.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260824210902_RefreshTokenRotation")]
+    partial class RefreshTokenRotation
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -381,9 +384,6 @@ namespace Promptino.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<bool>("IsHidden")
-                        .HasColumnType("bit");
-
                     b.Property<DateTime>("LastUpdatedAt")
                         .HasColumnType("datetime2");
 
@@ -484,89 +484,6 @@ namespace Promptino.Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("PromptReactions");
-                });
-
-            modelBuilder.Entity("Promptino.Core.Domain.Entities.PromptReport", b =>
-                {
-                    b.Property<Guid>("ID")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime>("LastUpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid>("PromptID")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("Reason")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<Guid>("ReporterID")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime?>("ResolvedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid?>("ResolvedByUserID")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("int");
-
-                    b.HasKey("ID");
-
-                    b.HasIndex("PromptID");
-
-                    b.HasIndex("ReporterID", "PromptID")
-                        .IsUnique()
-                        .HasFilter("[Status] = 0");
-
-                    b.ToTable("PromptReports");
-                });
-
-            modelBuilder.Entity("Promptino.Core.Domain.Entities.PromptVersion", b =>
-                {
-                    b.Property<Guid>("ID")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("Content")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<Guid>("EditedByUserID")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime>("LastUpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid>("PromptID")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("VersionNumber")
-                        .HasColumnType("int");
-
-                    b.HasKey("ID");
-
-                    b.HasIndex("PromptID", "VersionNumber")
-                        .IsUnique();
-
-                    b.ToTable("PromptVersions");
                 });
 
             modelBuilder.Entity("Promptino.Core.Domain.Entities.SavedPrompt", b =>
@@ -760,36 +677,6 @@ namespace Promptino.Infrastructure.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("Promptino.Core.Domain.Entities.PromptReport", b =>
-                {
-                    b.HasOne("Promptino.Core.Domain.Entities.Prompt", "Prompt")
-                        .WithMany()
-                        .HasForeignKey("PromptID")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Promptino.Core.Domain.Entities.ApplicationUser", "Reporter")
-                        .WithMany("ReportsFiled")
-                        .HasForeignKey("ReporterID")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Prompt");
-
-                    b.Navigation("Reporter");
-                });
-
-            modelBuilder.Entity("Promptino.Core.Domain.Entities.PromptVersion", b =>
-                {
-                    b.HasOne("Promptino.Core.Domain.Entities.Prompt", "Prompt")
-                        .WithMany()
-                        .HasForeignKey("PromptID")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Prompt");
-                });
-
             modelBuilder.Entity("Promptino.Core.Domain.Entities.SavedPrompt", b =>
                 {
                     b.HasOne("Promptino.Core.Domain.Entities.Prompt", "Prompt")
@@ -816,8 +703,6 @@ namespace Promptino.Infrastructure.Migrations
                     b.Navigation("Prompts");
 
                     b.Navigation("Reactions");
-
-                    b.Navigation("ReportsFiled");
 
                     b.Navigation("SavedPrompts");
                 });

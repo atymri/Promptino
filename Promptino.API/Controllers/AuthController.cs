@@ -287,6 +287,13 @@ public class AuthController : BaseController
 
         var response = _tokenService.CreateToken(user);
 
+        // Fresh session: persist the new refresh token and reset the rotation family
+        user.RefreshToken = response.RefreshToken;
+        user.RefreshTokenExpiration = response.RefreshTokenExpiry;
+        user.PreviousRefreshToken = null;
+        user.PreviousRefreshTokenExpiration = null;
+        await _userManager.UpdateAsync(user);
+
         return response;
     }
 
@@ -321,12 +328,36 @@ public class AuthController : BaseController
         var email = claims.FindFirstValue(ClaimTypes.Name);
         var user = await _userManager.FindByEmailAsync(email);
 
-        if (user is null || user.RefreshToken != request.RefreshToken || user.RefreshTokenExpiration <= DateTime.UtcNow)
+        if (user is null)
             return Problem("Refresh Token نامعتبر است.",
                            statusCode: StatusCodes.Status400BadRequest,
                            title: "خطای درخواست");
 
+        // Reuse detection: presenting a superseded refresh token means it was
+        // duplicated somewhere — invalidate every token for this account.
+        if (!string.IsNullOrEmpty(user.PreviousRefreshToken)
+            && user.PreviousRefreshToken == request.RefreshToken)
+        {
+            user.PreviousRefreshToken = null;
+            user.PreviousRefreshTokenExpiration = null;
+            user.RefreshToken = null;
+            user.RefreshTokenExpiration = null;
+            await _userManager.UpdateAsync(user);
+
+            return Problem("Refresh Token قبلاً استفاده شده است؛ همه نشست‌ها باطل شدند.",
+                           statusCode: StatusCodes.Status401Unauthorized,
+                           title: "نشست نامعتبر");
+        }
+
+        if (user.RefreshToken != request.RefreshToken || user.RefreshTokenExpiration <= DateTime.UtcNow)
+            return Problem("Refresh Token نامعتبر است.",
+                           statusCode: StatusCodes.Status400BadRequest,
+                           title: "خطای درخواست");
+
+        // Rotate: demote current to previous, issue fresh tokens.
         var response = _tokenService.CreateToken(user);
+        user.PreviousRefreshToken = user.RefreshToken;
+        user.PreviousRefreshTokenExpiration = DateTime.UtcNow.AddMinutes(30); // grace window for in-flight requests
         user.RefreshToken = response.RefreshToken;
         user.RefreshTokenExpiration = response.RefreshTokenExpiry;
 

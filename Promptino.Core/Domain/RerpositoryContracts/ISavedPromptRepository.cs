@@ -9,4 +9,5 @@ public interface ISavedPromptRepository
     Task<bool> AddSavedPromptAsync(SavedPrompt saved);
     Task<bool> RemoveSavedPromptAsync(Guid userId, Guid promptId);
     Task<int> GetSavedCountAsync(Guid promptId);
+    Task RemoveAllForPromptAsync(Guid promptId);
 }
